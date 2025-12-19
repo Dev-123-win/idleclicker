@@ -1,0 +1,125 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Helper function to check if request is from server (Cloudflare Worker)
+    function isServerRequest() {
+      // In production, validate server IP or use a service account
+      return request.auth != null;
+    }
+    
+    // Helper function to validate coin changes
+    function validCoinChange() {
+      let oldCoins = resource.data.appCoins;
+      let newCoins = request.resource.data.appCoins;
+      // Allow decrease (spending) or reasonable increase (earning)
+      return newCoins <= oldCoins || (newCoins - oldCoins) <= 50000;
+    }
+    
+    // Helper function to validate tap changes
+    function validTapChange() {
+      let oldTaps = resource.data.totalTaps;
+      let newTaps = request.resource.data.totalTaps;
+      // Only allow reasonable tap increases (max 500 per sync)
+      return newTaps >= oldTaps && (newTaps - oldTaps) <= 500;
+    }
+    
+    // Users collection - optimized for free tier
+    match /users/{userId} {
+      // Allow read only owner
+      allow read: if isAuthenticated() && isOwner(userId);
+      
+      // Allow create only for new users (signup)
+      allow create: if isAuthenticated() && isOwner(userId) && 
+        request.resource.data.keys().hasAll(['email', 'createdAt']) &&
+        request.resource.data.appCoins == 0 &&
+        request.resource.data.totalTaps == 0;
+      
+      // Allow update with strict validation - CLIENT cannot update balance/stats
+      allow update: if isAuthenticated() && isOwner(userId) &&
+        // Critical fields must NOT change (ensure they remain same if sent, or rely on them not being sent)
+        // Checks that the new value equals the old value for critical fields
+        request.resource.data.appCoins == resource.data.appCoins &&
+        request.resource.data.totalTaps == resource.data.totalTaps &&
+        request.resource.data.energy == resource.data.energy &&
+        request.resource.data.missionsCompleted == resource.data.missionsCompleted &&
+        // Prevent modifying system fields
+        request.resource.data.uid == resource.data.uid &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.createdAt == resource.data.createdAt;
+    }
+    
+    // Withdrawals collection
+    match /withdrawals/{withdrawalId} {
+      // Users can only read their own withdrawals
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      
+      // No creation or updates from client - all withdrawals MUST go through Cloudflare Worker
+      allow create, update, delete: if false;
+      
+      // No updates allowed from client - only server can update status
+      allow update: if false;
+      
+      // No deletion
+      allow delete: if false;
+    }
+    
+    // Leaderboard - public read, no client write
+    match /leaderboard/{period} {
+      allow read: if true;
+      allow write: if false; // Only server can update
+    }
+    
+    // App settings - public read, no write
+    match /appSettings/{setting} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Missions - public read, no write
+    match /missions/{missionId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    
+    // Referrals tracking
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() && 
+        (resource.data.referrerId == request.auth.uid || 
+         resource.data.referredId == request.auth.uid);
+      
+      // No creation or updates from client - all referrals MUST go through Cloudflare Worker
+      allow create, update, delete: if false;
+      
+      allow update, delete: if false;
+    }
+    
+    // Banned users - no access
+    match /bannedUsers/{userId} {
+      allow read, write: if false;
+    }
+    
+    // Secure settings - no access
+    match /secureSettings/{setting} {
+      allow read, write: if false;
+    }
+    
+    // Sync logs for debugging (optional)
+    match /syncLogs/{logId} {
+      allow read: if false;
+      allow create: if isAuthenticated() && 
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}

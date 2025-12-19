@@ -1,0 +1,1790 @@
+PRODUCT REQUIREMENTS DOCUMENT (PRD)
+Tap-to-Earn Mobile Application with Cooldown Monetization System
+
+1. EXECUTIVE SUMMARY
+1.1 Product Vision
+A mobile tap-to-earn application where users accumulate virtual currency (AppCoins) through tapping missions, redeemable for real Indian Rupees via UPI/PayTM. The app uses strategic cooldown timers and an integrated auto-clicker to maximize user engagement while optimizing ad revenue through controlled ad impression distribution.
+1.2 Business Objectives
+
+Achieve 80% profit margin on user payouts
+Generate ₹500-700 in ad revenue per user who reaches ₹100 withdrawal threshold
+Maintain premium AdMob CPM rates (₹50-150) through strategic ad spacing
+Achieve 60+ day average user retention through time-gating mechanics
+Target 1% user conversion to withdrawal (sustainable payout model)
+
+1.3 Target Audience
+
+Primary: Indian users aged 18-35
+Secondary Demographics: Students, gig workers, homemakers seeking supplemental income
+Psychographic: Value-conscious individuals willing to invest time for monetary rewards
+Device Profile: Android users (90% market share in India), mid-to-low tier devices
+
+1.4 Core Value Proposition
+Users can earn real money through unlimited tapping with integrated auto-clicker assistance, creating a perception of passive income opportunity while the cooldown system ensures sustainable revenue generation for the business.
+
+2. PRODUCT OVERVIEW
+2.1 Virtual Currency System
+2.1.1 AppCoins (AC) Definition
+
+Primary in-app virtual currency
+Exchange rate: 1,000 AC = ₹1 INR (fixed, non-adjustable)
+No expiration date on earned AC
+Cannot be purchased with real money (earn-only model)
+Transferable only through official withdrawal process
+
+2.1.2 AC Earning Methods
+
+Primary: Completing tap missions
+Secondary: Daily login rewards, streak bonuses, referral rewards
+Tertiary: Event participation, achievement unlocks, leaderboard prizes
+
+2.1.3 AC Spending Options
+
+Premium auto-clicker rentals (Bronze/Silver/Gold tiers)
+Cooldown bypass purchases
+Energy refills
+Premium monthly passes
+Special event unlocks
+
+2.1.4 Withdrawal System
+
+Minimum Threshold: 100,000 AC (₹100)
+Maximum Per Month: 200,000 AC (₹200)
+Processing Time: 7-10 business days
+Transaction Fee: 2,000 AC (₹2) deducted per withdrawal
+Cooldown Period: 15 days between withdrawal requests
+Payment Methods: UPI, PayTM, bank transfer (Indian accounts only)
+KYC Requirements: PAN card mandatory for withdrawals above ₹100
+
+2.2 User Interface Structure
+2.2.1 Main Screen (Home/Tapping Interface)
+
+Top Section:
+
+Current AC balance (large, prominent display)
+Energy bar with current/max values (100/100 format)
+Active mission progress indicator (percentage + tap count)
+
+
+Center Section:
+
+Large circular tap button (60% of screen width)
+Tap counter animation (numbers fly upward on each tap)
+Visual feedback: Ripple effect, haptic feedback, color pulse
+Auto-clicker status indicator (ON/OFF, speed display)
+
+
+Bottom Section:
+
+Mission timer display (if active)
+Cooldown timer display (if active, with countdown)
+Navigation bar: Home, Missions, Auto-Clicker, Leaderboard, Profile
+
+
+Persistent Elements:
+
+Banner ad strip (bottom, above navigation)
+Settings icon (top right)
+Notification bell (top right, shows unread count)
+
+
+
+2.2.2 Mission Selection Screen
+
+Layout: Vertical scrolling list of mission cards
+Mission Card Components:
+
+Mission tier badge (Quick/Medium/Premium)
+Tap requirement (large number)
+AC reward (highlighted in gold)
+Required ads count (small text)
+Cooldown duration (displayed after completion)
+"Start Mission" button (or locked state if cooldown active)
+Progress bar if mission partially completed
+
+
+Filtering Options:
+
+All Missions
+Available Now
+In Cooldown
+Completed Today
+
+
+Top Banner: Shows daily mission completion count and potential earnings
+
+2.2.3 Auto-Clicker Management Screen
+
+Free Auto-Clicker Section:
+
+Current status (Active/Paused)
+Speed indicator (5 taps/second)
+ON/OFF toggle button
+Pause reason display (if paused: "Ad Cooldown Active: 3:42 remaining")
+
+
+Premium Auto-Clicker Section:
+
+Three tier cards (Bronze/Silver/Gold)
+Each card shows:
+
+Taps per second
+Duration (24 hours or 7 days)
+AC cost
+Special benefits list
+"Rent Now" button
+Timer if currently active
+
+
+
+
+Active Rental Display:
+
+Countdown timer
+Current speed
+Benefits active list
+"Extend" button (watch ads for +1 hour)
+
+
+
+2.2.4 Profile Screen
+
+User Statistics:
+
+Total taps lifetime
+Total AC earned
+Total ads watched
+Days active
+Current streak
+Missions completed
+
+
+Withdrawal Section:
+
+Current AC balance
+Withdraw button (enabled/disabled based on threshold)
+Pending withdrawal status (if any)
+Withdrawal history (last 5 transactions)
+Next withdrawal available date
+
+
+Account Settings:
+
+UPI ID setup
+PAN card verification
+Notification preferences
+Language selection (Hindi/English)
+
+
+
+2.2.5 Leaderboard Screen
+
+Daily Leaderboard:
+
+Top 50 users by taps today
+User's rank display (even if outside top 50)
+Prize pool information
+
+
+Weekly Competition:
+
+Top 10 users
+Prize distribution breakdown
+Entry requirement status (ads watched)
+Time remaining in competition
+
+
+All-Time Leaders:
+
+Total AC earned rankings
+Hall of fame badges
+
+
+
+
+3. COOLDOWN SYSTEM (CORE MECHANIC)
+3.1 Mission Completion Cooldown
+3.1.1 Cooldown Activation Trigger
+
+Cooldown begins the instant a mission is marked "Complete"
+"Complete" status triggered when: tap requirement met AND mandatory ads watched
+Cooldown timer starts immediately, no grace period
+User sees full-screen "Mission Complete" animation with cooldown notice
+
+3.1.2 Cooldown Duration Tiers
+Tier 1 - Quick Missions:
+
+15-minute cooldown
+Applies to missions requiring 2,000-5,000 taps
+Cooldown displayed as "Next Mission: 14:37"
+
+Tier 2 - Medium Missions:
+
+30-minute cooldown
+Applies to missions requiring 10,000-20,000 taps
+Cooldown displayed as "Next Mission: 29:12"
+
+Tier 3 - Premium Missions:
+
+60-minute cooldown
+Applies to missions requiring 50,000-100,000 taps
+Cooldown displayed as "Next Mission: 59:58"
+
+3.1.3 During Cooldown - Complete Restrictions
+What Users CANNOT Do:
+
+Start any new mission (all mission "Start" buttons greyed out)
+Earn AC through tapping (taps register as zero value)
+Progress on any existing mission
+Claim mission rewards
+
+What Users CAN Do:
+
+Access all navigation screens
+View missions and rewards (read-only)
+Configure auto-clicker settings (but it won't tap for missions)
+Watch social content (other users' achievements)
+Access profile and withdrawal screens
+Participate in social features (chat, team view)
+View advertisements (but not for cooldown bypass yet)
+Manage account settings
+
+3.1.4 Visual Cooldown Indicators
+Main Tap Button During Cooldown:
+
+Greyed out with 50% opacity
+Lock icon overlay
+Tapping produces no effect (no haptic, no animation)
+Text overlay: "Mission Cooldown Active"
+
+Mission Cards During Cooldown:
+
+Red border around locked cards
+Timer countdown displayed
+"Start Mission" button replaced with "Cooldown: XX:XX"
+All mission details still visible (no hiding information)
+
+Top Banner Notification:
+
+Persistent countdown timer
+Text: "Next Mission Available In: XX:XX"
+Orange/yellow color scheme (indicates waiting state)
+
+3.1.5 Cooldown Completion
+
+Full-screen notification: "Mission Cooldown Complete!"
+Confetti animation
+Haptic feedback burst
+Auto-navigation to Mission Selection screen
+Push notification if app is in background
+
+3.2 Cooldown Bypass Mechanisms
+3.2.1 Ad-Based Bypass (Primary Method)
+Option A: Partial Skip (5 minutes)
+
+Cost: Watch 2 Rewarded Video Ads
+Each ad is 30 seconds
+Total time investment: ~60-75 seconds (including loading)
+Reduces any cooldown by exactly 5 minutes
+Can be used multiple times per cooldown
+Example: 15-min cooldown → watch 6 ads → skip entirely
+
+Option B: Half Skip
+
+Cost: Watch 5 Rewarded Video Ads
+Total time investment: ~3 minutes
+Reduces cooldown by 50% (rounds up)
+Example: 30-min cooldown → 15 minutes remaining
+Single use per cooldown
+
+Option C: Full Skip
+
+Cost: Watch 8 Rewarded Video Ads
+Total time investment: ~4-5 minutes
+Removes cooldown entirely
+Immediately unlocks mission selection
+Displays "Premium Bypass Activated" message
+
+Bypass UI Flow:
+
+User taps "Skip Cooldown" button on cooldown screen
+Modal appears showing three options (A/B/C above)
+User selects option
+Ad queue begins (progress shown: "Ad 1 of 8")
+After final ad, cooldown updates/removes immediately
+Success confirmation screen
+Return to mission selection
+
+3.2.2 AC-Based Bypass (Secondary Method)
+Quick Bypass:
+
+Cost: 1,000 AC per 5-minute skip
+No ads required
+Instant application
+Cost-inefficient (user awareness encouraged)
+Confirmation dialog: "Spend 1,000 AC? (Worth ₹1)"
+
+Full Bypass:
+
+Cost: Varies by remaining cooldown
+
+15-min cooldown: 3,000 AC
+30-min cooldown: 6,000 AC
+60-min cooldown: 12,000 AC
+
+
+Confirmation dialog shows equivalent rupee value
+Warns: "This delays your withdrawal by X hours of missions"
+Two-step confirmation required (prevents accidental spending)
+
+3.2.3 Premium Pass Bypass Benefits
+Bronze Pass Holders (5,000 AC / 24 hours):
+
+Can skip ONE cooldown per day for free
+Free skip applies to any tier
+Resets at midnight IST
+"Free Skip Available" badge shown
+
+Silver Pass Holders (12,000 AC / 24 hours):
+
+Can skip THREE cooldowns per day for free
+Each skip tracked separately
+Counter display: "2/3 Free Skips Remaining"
+
+Gold Pass Holders (25,000 AC / 7 days):
+
+Can skip FIVE cooldowns per day for free
+All cooldowns 40% shorter (automatic)
+
+15-min → 9-min
+30-min → 18-min
+60-min → 36-min
+
+
+"Gold Member" badge on all screens
+
+3.3 Ad Cooldown System (CPM Protection)
+3.3.1 Interstitial Ad Cooldown
+Trigger Events:
+
+After every interstitial ad shown
+After mission completion (if interstitial was last ad)
+After cooldown bypass using interstitials
+
+Cooldown Duration: 3 minutes minimum between interstitials
+During Ad Cooldown:
+
+If mission requires interstitial: Mission pauses at completion
+User sees: "Ad Loading... (2:34 remaining)"
+Tapping continues to register (different from mission cooldown)
+Other ad types (rewarded, banner) still available
+Auto-clicker continues at normal speed
+
+Visual Indicator:
+
+Small timer in top-right corner
+Text: "Ad Ready In: 2:34"
+Yellow dot indicator (not ready) → Green dot (ready)
+
+Purpose: Prevents AdMob from flagging account for spam, maintains high CPM
+3.3.2 Rewarded Video Ad Cooldown
+Trigger Events:
+
+After watching any rewarded video
+Marathon mode: After 3 consecutive rewarded videos
+
+Cooldown Duration:
+
+Single video: 5 minutes
+Marathon mode (3 videos): 15 minutes
+
+During Rewarded Ad Cooldown:
+
+"Watch Ad" buttons greyed out
+Tooltip: "Rewarded ads refresh in XX:XX"
+Alternative options highlighted (AC spending, wait)
+Banner and interstitial ads unaffected
+
+Marathon Mode Details:
+
+User can queue up to 3 rewarded videos back-to-back
+After 3rd video: Longer cooldown kicks in
+Notification: "Rewarded ads cooling down. Try again in 15:00"
+Encourages strategic ad watching (not spam)
+
+Purpose: Maximizes rewarded video CPM (highest revenue ads), prevents ad network penalties
+3.3.3 Hourly Ad Limits (Automatic Protection)
+Hard Limits:
+
+Maximum 3 interstitial ads per hour
+Maximum 6 rewarded videos per hour
+No limit on banner refreshes (60/hour automatic)
+
+When Limit Reached:
+
+Notification: "Hourly ad limit reached. Refreshes in 42:00"
+Mission rewards claimable but cooldown bypass unavailable
+AC-based bypass options remain available
+Premium pass skips remain available (not ad-dependent)
+
+Limit Reset:
+
+Rolls on 60-minute sliding window
+Not hard reset at clock hour
+Example: Ad watched at 2:37 PM → available again at 3:37 PM
+
+User Communication:
+
+Counter display: "Ads Available: 2/3 interstitials, 4/6 rewarded"
+Proactive notification at 1 remaining: "Last rewarded video for this hour"
+
+3.3.4 Time-of-Day Ad Availability (Dynamic CPM Optimization)
+Morning Slot (6 AM - 12 PM IST):
+
+Ad inventory: Medium
+Cooldown multiplier: 1.2x (longer cooldowns)
+Example: 15-min cooldown → 18 minutes
+Reason: Lower advertiser demand in morning hours
+
+Afternoon Slot (12 PM - 6 PM IST):
+
+Ad inventory: High
+Cooldown multiplier: 1.0x (standard)
+Peak user activity period
+
+Evening Slot (6 PM - 11 PM IST):
+
+Ad inventory: Very High
+Cooldown multiplier: 0.8x (shorter cooldowns)
+Example: 15-min cooldown → 12 minutes
+Reason: Peak advertiser demand, highest CPM rates
+
+Night Slot (11 PM - 6 AM IST):
+
+Ad inventory: Low
+Cooldown multiplier: 2.0x (double cooldowns)
+Example: 15-min cooldown → 30 minutes
+Reason: Minimal advertiser demand, protect ad quality
+
+User Notification:
+
+"Evening Bonus: Cooldowns 20% shorter! (4 hours remaining)"
+"Night Mode: Cooldowns longer due to low ad availability"
+Encourages strategic playing during high-CPM hours
+
+
+4. ENERGY SYSTEM (SECONDARY LIMITER)
+4.1 Energy Mechanics
+4.1.1 Energy Definition
+
+Numerical resource required for tapping
+Maximum capacity: 100 energy units (universal for all users)
+Starting energy: 100 (full) for new users
+Display: Progress bar format "87/100" with percentage fill
+
+4.1.2 Energy Consumption Rate
+
+Per Tap Cost: 0.01 energy
+Calculation: 100 taps = 1 energy unit
+Full Depletion: 10,000 taps exhausts 100 energy completely
+Real-time Update: Energy bar decreases visibly every 100 taps
+
+4.1.3 Energy Depletion Behavior
+At 0 Energy:
+
+Tap button becomes completely unresponsive
+Message overlay: "Energy Depleted - Recharge Required"
+Auto-clicker automatically stops (cannot override)
+Mission progress freezes (saved, not lost)
+Red pulsing border around energy bar
+Three recharge options presented in modal
+
+At Low Energy (20 or below):
+
+Yellow warning color on energy bar
+Notification: "Low Energy: 20 remaining"
+Suggested action prompt appears
+Auto-clicker speed reduces to 3 taps/second (efficiency loss encourages recharge)
+
+4.1.4 Energy Regeneration (Natural)
+Regeneration Rate: 1 energy unit per minute (passive)
+
+Full recharge from 0 to 100: 100 minutes (1 hour 40 minutes)
+Partial example: 50 to 100: 50 minutes
+Regeneration continues when app is closed (background process)
+Timer display shows: "Full Energy In: 1:23:45"
+
+Regeneration Rules:
+
+Starts immediately upon depletion
+Cannot be paused or stopped
+Continues during mission cooldowns (simultaneous)
+Continues during ad cooldowns
+Persists through app restarts (server-tracked)
+
+4.1.5 Energy Refill Options (Instant)
+Option 1: Ad-Based Refill
+
+Watch 3 Rewarded Video Ads
+Reward: +30 energy (instant)
+Time investment: ~90 seconds
+Can be used multiple times per day
+No cooldown between uses (respects rewarded ad cooldown only)
+
+Option 2: AC-Based Refill
+
+Cost: 2,000 AC
+Reward: +50 energy (instant)
+Confirmation required (shows rupee equivalent: ₹2)
+Unlimited uses (if user has AC)
+Warning if user below 50,000 AC: "This delays withdrawal"
+
+Option 3: Premium Pass Full Refill
+
+Gold Pass exclusive benefit
+Cost: 0 AC (included in pass)
+Reward: Full 100 energy (instant)
+Limit: Once per day
+Resets at midnight IST
+"Daily Full Refill Available" badge shown
+
+4.1.6 Energy Display and Notifications
+Main Screen Display:
+
+Horizontal bar below AC balance
+Color coding:
+
+Green: 70-100 energy
+Yellow: 21-69 energy
+Red: 0-20 energy
+
+
+Numerical display: "87/100 Energy"
+Percentage indicator: Small text below bar
+
+Low Energy Notifications:
+
+At 20 energy: In-app banner "Low Energy Warning"
+At 5 energy: Modal popup "Energy Almost Depleted"
+At 0 energy: Full-screen "Energy Empty" with refill options
+
+Background Energy Full Notification:
+
+Push notification when energy reaches 100
+Message: "Energy Recharged! Resume your missions now!"
+Only sent if user away for 100+ minutes
+
+4.2 Energy and Auto-Clicker Integration
+4.2.1 Auto-Clicker Energy Consumption
+
+Consumes energy at normal rate (0.01 per tap)
+No discount or efficiency bonus
+Example: 10 taps/second = 0.1 energy/second = 1 energy per 10 seconds
+
+4.2.2 Auto-Clicker Behavior at Low Energy
+At 20 Energy:
+
+Speed reduces to 50% (from 10 taps/sec → 5 taps/sec)
+Notification: "Auto-Clicker Slowed: Low Energy"
+Flashing energy bar visual
+
+At 5 Energy:
+
+Speed reduces to 25% (from 10 taps/sec → 2.5 taps/sec)
+Notification: "Auto-Clicker Critical: Recharge Soon"
+Red pulsing animation on auto-clicker icon
+
+At 0 Energy:
+
+Auto-clicker stops completely
+Cannot be restarted until energy above 10
+Modal: "Auto-Clicker Paused: No Energy"
+Refill options prominently displayed
+
+4.2.3 Premium Pass Energy Efficiency
+Gold Pass Benefit:
+
+Energy consumption reduced by 30%
+Calculation: 0.01 energy per tap → 0.007 energy per tap
+Effective capacity: 100 energy = 14,285 taps (vs standard 10,000)
+Badge on energy bar: "30% More Efficient"
+Encourages Gold Pass purchases for long-grind users
+
+
+5. MISSION SYSTEM
+5.1 Mission Structure
+5.1.1 Mission Tiers
+TIER 1: QUICK MISSIONS
+Mission 1A:
+
+Tap Requirement: 2,000 taps
+AC Reward: 40 AC
+Mandatory Ads: 1 Interstitial (after completion)
+Energy Cost: 20 energy
+Cooldown: 15 minutes
+Estimated Time: 5-8 minutes (manual), 3-4 minutes (auto-clicker)
+
+Mission 1B:
+
+Tap Requirement: 5,000 taps
+AC Reward: 100 AC
+Mandatory Ads: 2 Interstitials (1 at 50%, 1 at 100%)
+Energy Cost: 50 energy
+Cooldown: 15 minutes
+Estimated Time: 12-15 minutes (manual), 8-10 minutes (auto-clicker)
+
+TIER 2: MEDIUM MISSIONS
+Mission 2A:
+
+Tap Requirement: 10,000 taps
+AC Reward: 250 AC
+Mandatory Ads: 1 Rewarded Video + 2 Interstitials (at 33%, 66%, 100%)
+Energy Cost: 100 energy (full bar)
+Cooldown: 30 minutes
+Estimated Time: 25-30 minutes (manual), 15-20 minutes (auto-clicker)
+
+Mission 2B:
+
+Tap Requirement: 20,000 taps
+AC Reward: 600 AC
+Mandatory Ads: 2 Rewarded Videos + 3 Interstitials (at 25%, 50%, 75%, 100%, final)
+Energy Cost: 200 energy (requires 1 refill mid-mission)
+Cooldown: 30 minutes
+Estimated Time: 45-60 minutes (manual), 30-40 minutes (auto-clicker)
+
+TIER 3: PREMIUM MISSIONS
+Mission 3A:
+
+Tap Requirement: 50,000 taps
+AC Reward: 1,500 AC
+Mandatory Ads: 3 Rewarded Videos + 5 Interstitials (spread across progress)
+Energy Cost: 500 energy (requires 4 refills)
+Cooldown: 60 minutes
+Estimated Time: 2-2.5 hours (manual), 1-1.5 hours (auto-clicker)
+
+Mission 3B:
+
+Tap Requirement: 100,000 taps
+AC Reward: 3,500 AC
+Mandatory Ads: 5 Rewarded Videos + 8 Interstitials
+Energy Cost: 1,000 energy (requires 9 refills)
+Cooldown: 60 minutes
+Estimated Time: 4-5 hours (manual), 2.5-3 hours (auto-clicker)
+
+5.1.2 Mission Progression Checkpoints
+Ad Trigger Points:
+Each mission has predetermined tap count thresholds where ads trigger:
+Example (Mission 2A - 10,000 taps):
+
+Checkpoint 1: 3,300 taps → Interstitial Ad
+Checkpoint 2: 6,600 taps → Rewarded Video
+Checkpoint 3: 10,000 taps → Interstitial Ad
+
+Checkpoint Behavior:
+
+User reaches checkpoint tap count
+Tapping immediately pauses (auto-clicker stops)
+Ad plays automatically (no skip option)
+After ad completion: Ad cooldown begins (if applicable)
+Mission resumes after ad cooldown expires
+Progress saved (if user exits, continues from checkpoint)
+
+Visual Checkpoint Indicators:
+
+Progress bar shows vertical markers at checkpoint positions
+Text: "Next Ad At: 3,300 taps"
+Changes color as approaching checkpoint (green → yellow → red)
+
+5.1.3 Mission Completion Requirements
+All Conditions Must Be Met:
+
+Exact tap count reached (not exceeded, exact match)
+All mandatory ads watched completely
+All ad cooldowns cleared (no pending ad cooldowns)
+User must claim reward (active action required)
+
+Claim Reward Flow:
+
+Mission shows "Complete" status
+Tap count stops incrementing
+"Claim Reward" button appears (large, centered)
+User taps button
+Animation: Coins fly into AC balance counter
+Final confirmation: "+600 AC Earned!"
+Mission cooldown timer starts immediately
+
+If User Doesn't Claim:
+
+Reward remains claimable indefinitely
+Cannot start new missions until claimed
+Reminder notification every 5 minutes
+
+5.1.4 Mission Abandonment
+User Can Abandon Mission:
+
+"Abandon Mission" button in mission details
+Confirmation dialog: "Lose all progress? (XX taps, XX ads watched)"
+If confirmed:
+
+All taps lost (no partial credit)
+Ads watched not refunded (ad view counts remain)
+Energy consumed not refunded
+No cooldown applied
+Can immediately start new mission
+
+
+
+Automatic Abandonment:
+
+If user doesn't interact with app for 48 hours during active mission
+Progress saved for 48 hours, then auto-abandoned
+Push notification at 36 hours: "Complete your mission or lose progress!"
+
+5.2 Mission Availability and Rotation
+5.2.1 Daily Mission Limits
+No daily mission completion limits - users can complete unlimited missions
+
+Only limited by cooldowns and energy
+Encourages marathon sessions
+
+5.2.2 Mission Unlocking
+Tier Unlocking System:
+
+Tier 1 (Quick): Available immediately for new users
+Tier 2 (Medium): Unlocks after completing 5 Tier 1 missions
+Tier 3 (Premium): Unlocks after completing 10 Tier 2 missions
+
+Unlock Notifications:
+
+"Achievement Unlocked: Medium Missions Available!"
+Confetti animation
+Tutorial tooltip explaining new tier
+
+5.2.3 Special Missions (Time-Limited)
+Daily Challenge Mission:
+
+Available once per day (resets midnight IST)
+Tap Requirement: 30,000 taps
+AC Reward: 2,000 AC (2x standard rate)
+Mandatory Ads: 10 Rewarded Videos + 6 Interstitials
+Energy Cost: 300 energy
+Cooldown: None (only 1 attempt per day)
+Time Limit: Must complete within 24 hours of starting
+
+Weekend Bonus Missions (Saturday-Sunday only):
+
+Higher AC rewards (1.5x multiplier)
+Same tap requirements
+Same ads required
+Shorter cooldowns (50% reduction)
+Special badge on completion
+
+Event Missions (Monthly):
+
+Announced 7 days in advance
+Mega rewards (5,000-10,000 AC)
+Extreme tap requirements (200,000+ taps)
+Entry fee: Watch 20 ads upfront
+Time limit: 7 days to complete
+Leaderboard for fastest completion
+
+
+6. AUTO-CLICKER SYSTEM
+6.1 Free Auto-Clicker
+6.1.1 Basic Specifications
+
+Speed: 5 taps per second (300 taps per minute)
+Cost: Free (permanently available to all users)
+Toggle: ON/OFF switch on main screen and auto-clicker screen
+Energy Consumption: Standard rate (0.05 energy per second)
+Visual Indicator: Pulsing circle around tap button when active
+
+6.1.2 Free Auto-Clicker Limitations
+Pauses Automatically When:
+
+Energy reaches 0 (cannot override)
+Mission cooldown begins (cannot be used during cooldown)
+Ad cooldown active (pauses for 3-5 minutes)
+Checkpoint ad triggers (stops until ad completes + cooldown)
+User manually pauses (tap button toggles it off)
+
+Pause Display:
+
+Greyed out tap button
+Pause icon overlay
+Reason text: "Paused: Ad Cooldown (2:34 remaining)"
+Auto-resumes when pause reason clears
+
+6.1.3 Free Auto-Clicker Benefits
+
+Hands-free tapping (user can multitask)
+Consistent tap rate (no fatigue)
+Works with screen off (background mode after first minute)
+Progress saved during interruptions
+
+6.1.4 Free Auto-Clicker Usage Analytics
+
+Tracks total auto-clicker time used
+Displays on profile: "Auto-Clicker: 24h 35m"
+Achievement unlocks at milestones (10h, 50h, 100h)
+
+6.2 Premium Auto-Clicker Tiers
+6.2.1 Bronze Auto-Clicker
+Rental Terms:
+
+Cost: 5,000 AC (₹5 equivalent)
+Duration: 24 hours from activation
+Countdown timer: "Bronze Active: 18h 23m remaining"
+
+Performance Specifications:
+
+Speed: 10 taps per second (2x free version)
+600 taps per minute
+36,000 taps per hour potential
+
+Special Benefits:
+
+Pauses for ad cooldowns (same as free)
+ONE free cooldown skip per day
+
+User can skip any mission cooldown once
+Does not require watching ads
+Button: "Use Bronze Skip (1/1 available)"
+Resets at midnight IST, not 24h from activation
+
+
+
+Visual Distinction:
+
+Bronze badge overlay on tap button
+Bronze colored ripple effects
+Profile badge: "Bronze Member"
+
+Extension Option:
+
+Watch 5 rewarded videos = Extend Bronze by 2 hours
+Can extend unlimited times before expiry
+Cannot extend after expiry (must repurchase)
+
+6.2.2 Silver Auto-Clicker
+Rental Terms:
+
+Cost: 12,000 AC (₹12 equivalent)
+Duration: 24 hours from activation
+Countdown timer: "Silver Active: 20h 15m remaining"
+
+Performance Specifications:
+
+Speed: 15 taps per second (3x free version)
+900 taps per minute
+54,000 taps per hour potential
+
+Special Benefits:
+
+Pauses for ad cooldowns (same as free)
+THREE free cooldown skips per day
+
+Counter: "Cooldown Skips: 2/3 remaining"
+Resets at midnight IST
+No ads required for skips
+
+
+Ad Cooldown Bypass (Partial)
+
+Ad cooldowns reduced by 50%
+3-minute interstitial cooldown → 1.5 minutes
+5-minute rewarded cooldown → 2.5 minutes
+
+
+Energy Efficiency Boost
+
+15% reduced energy consumption
+Effective rate: 0.0085 energy per tap
+
+
+
+Visual Distinction:
+
+Silver badge overlay
+Silver particle effects
+Profile badge: "Silver Member"
+Special silver frame around profile picture
+
+6.2.3 Gold Auto-Clicker
+Rental Terms:
+
+Cost: 25,000 AC (₹25 equivalent)
+Duration: 7 days (168 hours) from activation
+Countdown timer: "Gold Active:
+Continue7:14 AM5d 12h 34m remaining"
+Performance Specifications:
+
+Speed: 20 taps per second (4x free version)
+1,200 taps per minute
+72,000 taps per hour potential
+
+Special Benefits:
+
+NEVER pauses for ad cooldowns (continues through all cooldowns)
+
+Interstitial cooldowns ignored
+Rewarded video cooldowns ignored
+Hourly ad limits don't stop auto-clicker
+
+
+FIVE free cooldown skips per day
+
+Counter: "Cooldown Skips: 4/5 remaining"
+Resets at midnight IST
+
+
+All Mission Cooldowns Reduced 40%
+
+15-minute → 9-minute cooldowns
+30-minute → 18-minute cooldowns
+60-minute → 36-minute cooldowns
+Automatic, no action required
+
+
+Energy Efficiency Boost
+
+30% reduced energy consumption
+Effective rate: 0.007 energy per tap
+100 energy = 14,285 taps
+
+
+Daily Full Energy Refill
+
+Once per day: Instant 0→100 energy
+Button: "Gold Refill (Available)"
+Resets at midnight IST
+No ads required, no AC cost
+
+
+
+Exclusive Features:
+
+Priority customer support
+Exclusive Gold badge on leaderboard
+Access to Gold-only missions (higher rewards)
+Early access to new features
+
+Visual Distinction:
+
+Gold badge overlay with animated shimmer
+Gold particle trail effects
+Profile border: Animated gold frame
+Profile badge: "Gold Elite Member"
+Special chat tag color
+
+Extension Option:
+
+Watch 10 rewarded videos = Extend Gold by 24 hours
+Can extend multiple times
+Must extend before expiry
+
+6.3 Auto-Clicker Comparative Analysis
+Speed Comparison (10,000 tap mission):
+
+Free (5 taps/sec): 33 minutes 20 seconds
+Bronze (10 taps/sec): 16 minutes 40 seconds
+Silver (15 taps/sec): 11 minutes 6 seconds
+Gold (20 taps/sec): 8 minutes 20 seconds
+
+Energy Efficiency (100,000 taps):
+
+Free: 1,000 energy required (10 refills)
+Bronze: 1,000 energy required (10 refills)
+Silver: 850 energy required (8.5 refills)
+Gold: 700 energy required (7 refills)
+
+Time to 100,000 AC (with cooldowns):
+
+Free: 60-75 days
+Bronze: 40-50 days
+Silver: 30-38 days
+Gold: 20-25 days
+
+6.4 Auto-Clicker Purchase Psychology
+6.4.1 First Purchase Trigger
+At 10,000 AC earned:
+
+Pop-up: "Speed Up Your Journey!"
+Shows time comparison chart
+"Try Bronze for 24h - Only 5,000 AC"
+Countdown: "Special Offer: 48 hours remaining"
+
+6.4.2 Upgrade Path Suggestion
+Bronze Users at 50% Duration:
+
+Notification: "Upgrade to Silver for extended time"
+Show savings: "Save 3,000 AC vs buying Bronze again"
+Limited time: 20% discount on Silver
+
+6.4.3 Spending vs Withdrawal Awareness
+Warning System:
+
+If user below 60,000 AC and trying to buy Gold:
+
+"This purchase delays withdrawal by approximately 8 days"
+Calculator shown: "Days until ₹100: X days"
+Still allow purchase (user choice)
+
+
+
+
+7. ADVERTISEMENT INTEGRATION
+7.1 Ad Types and Placement
+7.1.1 Banner Ads
+Placement: Bottom of screen, above navigation bar
+Specifications:
+
+Size: 320x50 pixels (standard mobile banner)
+Always visible on: Home, Mission Selection, Auto-Clicker, Leaderboard screens
+Hidden during: Active ad viewing, mission completion animations
+Refresh Rate: Every 60 seconds (automatic)
+Click-through: Opens in-app browser
+
+Revenue Expectations:
+
+CPM: ₹20-30 (average ₹25)
+Per user per day: 120-180 impressions (2-3 hours active usage)
+Daily revenue per user: ₹3-4.5 from banners alone
+
+User Experience:
+
+Non-intrusive (doesn't block content)
+Can be scrolled past on long screens
+No accidental click protection (placement away from tap button)
+
+7.1.2 Interstitial Ads
+Trigger Points:
+
+Mission checkpoint reaches (predetermined taps)
+Mission completion (before reward claim)
+Every 500 taps during continuous tapping (if no active mission)
+App resume after 5+ minutes away
+
+Specifications:
+
+Full-screen takeover
+Duration: 5-15 seconds (static) or 30 seconds (video)
+Skip button: After 5 seconds (static) or non-skippable (video)
+Close button: Prominent X in top-right corner
+Loading time: 2-4 seconds (cached when possible)
+
+Revenue Expectations:
+
+CPM: ₹40-60 (average ₹50)
+Per user per day: 8-15 impressions
+Daily revenue per user: ₹4-7.5 from interstitials
+
+User Experience:
+
+Warning before display: "Loading reward..." (2 seconds)
+Progress indicator: "Ad 1 of 3" during checkpoint sequences
+Cannot be skipped prematurely
+Must watch to completion
+
+7.1.3 Rewarded Video Ads
+Trigger Points (User-Initiated):
+
+Cooldown bypass option selected
+Energy refill option selected
+Daily spin wheel activation
+Leaderboard entry requirement
+Bonus AC offers ("Watch ad for +200 AC")
+Mission completion reward doubler
+
+Specifications:
+
+Full-screen video (vertical or horizontal)
+Duration: 15-30 seconds (typically 30)
+Non-skippable (must watch to completion)
+Close button: Appears only after completion
+Loading screen: "Preparing your reward..."
+
+Revenue Expectations:
+
+CPM: ₹100-150 (average ₹120)
+Per user per day: 10-25 impressions (highly engaged users)
+Daily revenue per user: ₹12-30 from rewarded videos
+
+User Experience:
+
+Clear benefit statement before watching: "Watch 30-sec ad → Get 30 energy"
+Progress bar during video: "15 seconds remaining"
+Reward confirmation after completion: "30 Energy Added!"
+Cannot close app during video (progress lost if closed)
+
+Verification System:
+
+Server-side callback from AdMob
+Reward only granted after verification
+If verification fails: "Ad incomplete - please try again"
+Prevents fraud/ad-blockers
+
+7.2 Ad Frequency Management
+7.2.1 Daily Ad Impression Targets
+Per Active User:
+
+Banner impressions: 120-180
+Interstitial impressions: 10-15
+Rewarded video impressions: 15-25
+Total revenue target: ₹25-40 per day
+
+7.2.2 Ad Cooldown Enforcement (Detailed)
+Interstitial Cooldown:
+
+3 minutes minimum between impressions
+Tracked server-side (cannot be bypassed)
+If triggered during cooldown:
+
+Mission pauses at checkpoint
+Message: "Ad ready in 1:45 - Mission will resume"
+User can wait or spend AC to skip wait
+
+
+
+Rewarded Video Cooldown:
+
+5 minutes minimum between single videos
+15 minutes after "marathon" (3 consecutive videos)
+Marathon counter resets after 15 minutes of no videos watched
+Display: "Rewarded Ads: 2/3 before cooldown"
+
+Hourly Caps:
+
+3 interstitials per rolling hour
+6 rewarded videos per rolling hour
+If cap reached:
+
+All ad buttons greyed out
+Tooltip: "Hourly ad limit reached. Resets at 3:45 PM"
+Alternative options highlighted (AC spending)
+
+
+
+Dynamic Adjustment:
+
+If ad fill rate low (< 70%): Increase cooldown by 50%
+If ad fill rate high (> 90%): Standard cooldowns
+Protects user experience and CPM rates
+
+7.2.3 Time-of-Day Ad Availability
+Peak Hours (6 PM - 11 PM IST):
+
+Standard cooldowns
+All ad types readily available
+Highest CPM rates (₹50-150)
+Notification: "Peak Hours: Best time to earn!"
+
+Off-Peak Hours (6 AM - 6 PM IST):
+
+Cooldowns increased by 20%
+Slightly lower fill rates
+Moderate CPM rates (₹40-120)
+
+Late Night (11 PM - 6 AM IST):
+
+Cooldowns doubled (protection mode)
+Lower fill rates (60-80%)
+Lower CPM rates (₹30-80)
+Warning: "Late night - ad availability limited"
+
+User Notification:
+
+"Best earning hours: 6 PM - 11 PM"
+Push notification at 5:45 PM: "Peak ad hours starting soon!"
+
+7.3 Ad Revenue Optimization Strategies
+7.3.1 Rewarded Video Prioritization
+Why Rewarded Videos Are Key:
+
+Highest CPM (₹120 vs ₹50 for interstitials)
+User-initiated (better engagement)
+Higher completion rates (95%+ vs 70% for interstitials)
+
+How to Maximize:
+
+Make cooldown bypass require rewarded videos (not just interstitials)
+Energy refills exclusively through rewarded videos
+Daily bonuses require rewarded video to claim
+Leaderboard entry requires rewarded videos
+Mission reward doublers through rewarded videos
+
+Target: 60% of total ad revenue from rewarded videos
+7.3.2 Ad Mediation Strategy
+Primary Ad Network: Google AdMob
+Backup Networks (waterfall):
+
+Facebook Audience Network (if AdMob fails)
+Unity Ads (second backup)
+AppLovin (final backup)
+
+Waterfall Logic:
+
+Request ad from AdMob first
+If no fill within 3 seconds → Request from Facebook
+If no fill within 3 seconds → Request from Unity
+If no fill → Display "Ad unavailable" message
+
+Purpose: Maximize fill rate (target 95%+) and CPM
+7.3.3 Ad Quality Filtering
+Blocked Categories:
+
+Gambling/Betting apps
+Adult content
+Misinformation/fake news
+Violent games (graphic content)
+Cryptocurrency/trading apps (user protection)
+
+Why: Maintain app reputation, protect users, comply with Google Play policies
+7.3.4 A/B Testing Plans
+Test Variables:
+
+Ad cooldown lengths (2 min vs 3 min vs 4 min)
+Rewarded video reward amounts (30 vs 40 vs 50 energy)
+Interstitial frequency (every 500 vs 750 taps)
+Mission checkpoint ad placement (early vs late)
+
+Success Metrics:
+
+Revenue per daily active user (ARPDAU)
+Ad impression per user per day
+User retention rate (Day 7, Day 30)
+Withdrawal completion rate
+
+
+8. MONETIZATION MODEL
+8.1 Revenue Per User Journey (To ₹100 Withdrawal)
+8.1.1 Week-by-Week Breakdown
+Week 1: Honeymoon Phase
+
+Missions Completed: 20 Quick Missions
+AC Earned: 2,000 AC (₹2)
+Ads Watched:
+
+40 Interstitials
+20 Rewarded Videos
+1,400 Banner impressions (auto)
+
+
+Revenue Generated:
+
+Interstitials: 40 × ₹0.50 = ₹20
+Rewarded: 20 × ₹1.20 = ₹24
+Banners: 1,400 × ₹0.025 = ₹35
+Week Total: ₹79
+
+
+
+Week 2-4: Grind Phase (3 weeks)
+
+Missions Completed: 40 Medium Missions
+AC Earned: 18,000 AC (net, after auto-clicker purchase)
+Ads Watched per week:
+
+60 Interstitials
+80 Rewarded Videos
+1,600 Banner impressions
+
+
+Revenue Generated per week:
+
+Interstitials: 60 × ₹0.50 = ₹30
+Rewarded: 80 × ₹1.20 = ₹96
+Banners: 1,600 × ₹0.025 = ₹40
+Week Total: ₹166 × 3 = ₹498
+
+
+
+Week 5-8: Investment Phase (4 weeks)
+
+Missions Completed: 30 Premium Missions
+AC Earned: 55,000 AC (gross), 35,000 AC (net after Silver purchase)
+Ads Watched per week:
+
+50 Interstitials
+100 Rewarded Videos
+1,800 Banner impressions
+
+
+Revenue Generated per week:
+
+Interstitials: 50 × ₹0.50 = ₹25
+Rewarded: 100 × ₹1.20 = ₹120
+Banners: 1,800 × ₹0.025 = ₹45
+Week Total: ₹190 × 4 = ₹760
+
+
+
+Week 9-12: Final Push (4 weeks)
+
+Missions Completed: 25 Premium Missions
+AC Earned: 50,000 AC (reaches 100,000 total)
+Ads Watched per week:
+
+45 Interstitials
+90 Rewarded Videos
+1,500 Banner impressions
+
+
+Revenue Generated per week:
+
+Interstitials: 45 × ₹0.50 = ₹22.5
+Rewarded: 90 × ₹1.20 = ₹108
+Banners: 1,500 × ₹0.025 = ₹37.5
+Week Total: ₹168 × 4 = ₹672
+
+
+
+12-Week Journey Total:
+
+Total AC Earned: 125,000 AC (spent 25,000 on auto-clickers/boosts)
+Net AC for Withdrawal: 100,000 AC (₹100)
+Total Revenue Generated: ₹2,009
+Payout to User: ₹100
+Net Profit: ₹1,909 (95% margin)
+
+8.1.2 Cooldown Bypass Revenue (Additional)
+Impatient User Segment (40% of users):
+
+Average cooldown bypasses: 50 throughout journey
+Average ads per bypass: 5 rewarded videos
+Additional ads watched: 250 rewarded videos
+Additional revenue: 250 × ₹1.20 = ₹300
+Total Revenue (Impatient User): ₹2,309
+Profit: ₹2,209 (95.7% margin)
+
+8.1.3 Premium Pass Revenue (Circular Economy)
+Users Who Buy Gold Pass:
+
+Spend 25,000 AC (₹25 in-app value)
+Complete journey in 20-25 days (vs 60-90 days)
+Watch 30% more ads (due to faster completion + more missions/day)
+Additional revenue: ₹600
+Total Revenue: ₹2,609
+Net After ₹100 Payout: ₹2,509 (96.2% margin)
+
+The Trap: Users spend their earned AC thinking they're "investing" to earn faster, but they're actually delaying their withdrawal while generating more ad revenue.
+8.2 User Conversion Funnel
+8.2.1 Acquisition to Withdrawal Funnel
+
+10,000 App Installs
+↓ (70% complete onboarding)
+7,000 Active Users (complete at least 1 mission)
+↓ (40% reach 10,000 AC)
+2,800 Engaged Users (10% of original)
+↓ (30% reach 50,000 AC)
+840 Committed Users (50% of journey)
+↓ (50% reach 100,000 AC)
+420 Withdrawal-Ready Users (4.2% conversion rate)
+↓ (80% actually withdraw)
+336 Successful Withdrawals (3.36% final conversion)
+
+8.2.2 Revenue by Funnel Stage
+7,000 Active Users (didn't reach withdrawal):
+
+Average AC earned: 3,000 AC each
+Average ads watched: 150 per user
+Average revenue per user: ₹120
+Total Revenue: ₹840,000
+Payout: ₹0 (below threshold)
+Profit: ₹840,000 (100% margin)
+
+336 Successful Withdrawals:
+
+Average revenue per user: ₹2,009
+Total Revenue: ₹675,024
+Total Payout: ₹33,600 (336 × ₹100)
+Profit: ₹641,424 (95% margin)
+
+Combined (10,000 installs):
+
+Total Revenue: ₹1,515,024
+Total Payout: ₹33,600
+Net Profit: ₹1,481,424
+Effective Margin: 97.8%
+
+8.3 Unit Economics
+8.3.1 Cost Per Acquisition (CPA)
+User Acquisition Channels:
+
+Google Ads: ₹30-50 per install
+Facebook Ads: ₹25-40 per install
+Organic (ASO): ₹0
+Referral: ₹2 reward cost per referral
+
+Average CPA Target: ₹40 per install
+8.3.2 Lifetime Value (LTV)
+Average LTV Per User:
+
+Revenue from non-withdrawing users (70%): ₹120 × 0.70 = ₹84
+Revenue from withdrawing users (3.36%): (₹2,009 - ₹100) × 0.0336 = ₹64.14
+Combined LTV: ₹148.14
+
+LTV:CPA Ratio: 3.7:1 (Healthy, sustainable)
+8.3.3 Break-Even Analysis
+Break-Even Point Per User:
+
+Cost: ₹40 (acquisition)
+Revenue needed: ₹40
+Ads needed: ~50 ad impressions (mixed types)
+Time to break-even: 3-5 days of active usage
+95%+ of users are profitable within first week
+
+8.3.4 Monthly Revenue Projections
+Assuming 10,000 Monthly Active Users (MAU):
+
+Daily ad revenue: ₹30 per user × 10,000 = ₹300,000
+Monthly ad revenue: ₹9,000,000
+Monthly payouts: ~30 users × ₹100 = ₹3,000
+Operating costs: ₹50,000 (Firebase, Cloudflare, support)
+Net Monthly Profit: ₹8,947,000
+
+8.4 Revenue Diversification
+8.4.1 Referral Program Revenue
+Structure:
+
+Referrer gets: 2,000 AC (₹2) after referee watches 25 ads
+Referee gets: 1,000 AC (₹1) sign-up bonus
+
+Economics:
+
+Referee watches 25 ads before referrer gets reward
+Revenue from 25 ads: ₹25-30
+Cost to business: ₹2 (referrer) + ₹1 (referee) = ₹3
+Net profit: ₹22-27 per referral
+Plus CPA savings: ₹40 (no acquisition cost)
+Total benefit: ₹62-67 per referral
+
+Viral Coefficient Target: 0.3 (each user refers 0.3 users on average)
+8.4.2 Leaderboard Competition Revenue
+Weekly Competition:
+
+Entry requirement: Watch 5 rewarded videos
+Participants: 500 users per competition
+Prize pool: 50,000 AC (₹50) split among top 10
+Revenue: 500 users × 5 ads × ₹1.20 = ₹3,000
+Net profit: ₹2,950
+
+Monthly Competition:
+
+Entry requirement: Watch 20 rewarded videos
+Participants: 200 users
+Prize pool: 200,000 AC (₹200) for top 3
+Revenue: 200 × 20 × ₹1.20 = ₹4,800
+Net profit: ₹4,600
+
+8.4.3 Daily Spin Wheel Revenue
+Mechanics:
+
+1 free spin per day (requires 1 rewarded video)
+Additional spins: 3 rewarded videos each
+Prizes: 50-500 AC (average 200 AC)
+Average user spins: 2 per day
+
+Economics:
+
+Ads watched: 1 + (1 × 3) = 4 rewarded videos per day
+Revenue: 4 × ₹1.20 = ₹4.80
+Cost: 200 AC payout = ₹0.20
+Net profit: ₹4.60 per user per day
+Monthly profit (10K users): ₹1,380,000
+
+
+9. RETENTION AND ENGAGEMENT SYSTEMS
+9.1 Daily Login Rewards
+9.1.1 Reward Schedule
+Day 1: 100 AC
+
+Claim requirement: Watch 1 rewarded video
+Welcome message: "Welcome back! Claim your daily bonus!"
+
+Day 3: 300 AC
+
+Claim requirement: Watch 2 rewarded videos
+Message: "You're building a streak! Keep going!"
+
+Day 7: 1,000 AC
+
+Claim requirement: Watch 5 rewarded videos
+Message: "One week strong! Here's your bonus!"
+Badge unlock: "Dedicated Member"
+
+Day 14: 2,500 AC
+
+Claim requirement: Watch 8 rewarded videos
+Special animation: Gold coin shower
+
+Day 30: 5,000 AC
+
+Claim requirement: Watch 15 rewarded videos
+Badge unlock: "Elite Member"
+Profile frame: Gold border
+
+Day 60: 10,000 AC
+
+Claim requirement: Watch 20 rewarded videos
+Badge unlock: "Legendary Member"
+Special profile animation
+
+Day 90+: 15,000 AC (repeats every 30 days)
+
+Claim requirement: Watch 25 rewarded videos
+
+9.1.2 Streak Mechanics
+Streak Definition: Consecutive days with at least 1 mission completed
+Streak Display: "🔥 15 Day Streak!" on profile
+Streak Bonuses:
+
+7-day streak: +10% AC on all missions (24-hour buff)
+14-day streak: Free Bronze Auto-Clicker (24 hours)
+30-day streak: +25% AC on all missions (48-hour buff)
+60-day streak: Free Silver Auto-Clicker (48 hours)
+90-day streak: Free Gold Auto-Clicker (72 hours)
+
+Streak Protection:
+
+Miss a day: Streak resets to 0
+"Streak Freeze" (1 per month): Watch 10 rewarded videos to prevent reset
+Warning notification if inactive for 18 hours: "Don't break your streak!"
+
+9.2 Achievement System
+9.2.1 Tapping Achievements
+Novice Tapper: 10,000 total taps
+
+Reward: 500 AC
+Badge: Bronze finger icon
+
+Intermediate Tapper: 100,000 total taps
+
+Reward: 2,000 AC
+Badge: Silver finger icon
+
+Expert Tapper: 500,000 total taps
+
+Reward: 5,000 AC
+Badge: Gold finger icon
+
+Master Tapper: 1,000,000 total taps
+
+Reward: 15,000 AC
+Badge: Diamond finger icon
+Profile title: "Tap Master"
+
+Legendary Tapper: 5,000,000 total taps
+
+Reward: 50,000 AC
+Badge: Animated platinum finger
+Leaderboard hall of fame entry
+
+9.2.2 Ad Watching Achievements
+Ad Supporter: Watch 100 ads
+
+Reward: 1,000 AC
+Badge: Bronze TV icon
+
+Ad Enthusiast: Watch 500 ads
+
+Reward: 3,000 AC
+Badge: Silver TV icon
+
+Ad Champion: Watch 1,000 ads
+
+Reward: 8,000 AC
+Badge: Gold TV icon
+
+Ad Legend: Watch 5,000 ads
+
+Reward: 25,000 AC
+Badge: Diamond TV icon
+Profile title: "Revenue Champion"
+
+9.2.3 Mission Achievements
+Mission Beginner: Complete 10 missions
+Mission Veteran: Complete 50 missions
+Mission Expert: Complete 200 missions
+Mission Master: Complete 500 missions
+
+Progressive rewards: 500, 2,000, 7,000, 20,000 AC
+
+9.2.4 Social Achievements
+Team Player: Refer 1 friend
+Influencer: Refer 10 friends (10,000 AC bonus)
+Viral Star: Refer 50 friends (50,000 AC bonus + exclusive badge)
+Leaderboard Achievements:
+
+Top 10 Daily: "Daily Champion" badge (24 hours)
+Top 10 Weekly: 5,000 AC bonus
+Top 3 Monthly: 20,000 AC bonus + permanent profile badge
+
+9.3 Time-Limited Events
+9.3.1 Happy Hours (Twice Daily)
+Timing: 12 PM - 3 PM and 7 PM - 10 PM IST
+Bonuses:
+
+2× AC earnings on all missions
+50% shorter cooldowns
+2× energy regeneration rate
+Banner: "HAPPY HOUR ACTIVE!"
+
+Entry Requirement:
+
+Watch 10 rewarded videos to activate bonuses
+Bonuses last for entire 3-hour window
+Notification 10 minutes before: "Happy Hour starting soon!"
+
+Revenue Impact:
+
+10 rewarded videos upfront: ₹12
+Users complete 2-3× more missions during window
+Additional 20-30 ads watched: ₹25-35
+Total additional revenue: ₹37-47 per active user
+
+9.3.2 Weekend Bonus (Saturday-Sunday)
+Bonuses:
+
+1.5× AC earnings on all missions
+No mission cooldowns (can chain missions back-to-back)
+Energy drains 1.5× faster (forces more refills)
+
+Entry Requirement:
+
+Watch 20 rewarded videos anytime during weekend to unlock
+Unlock lasts full 48 hours
+
+Purpose:
+
+Increase weekend engagement (typically lower than weekdays)
+Generate high ad revenue during peak ad CPM hours
+
+9.3.3 Monthly Mega Event
+Announcement: 7 days in advance via push notification and in-app banner
+Event Structure:
+
+Special mission: 500,000 total taps
+Time limit: 7 days to complete
+Rewards:
+
+1st place: 100,000 AC (₹100)
+2nd-5th place: 50,000 AC (₹50)
+6th-20th place: 25,000 AC (₹25)
+21st-100th place: 10,000 AC (₹10)
+
+
+
+Entry Fee:
+
+Watch 30 rewarded videos upfront (₹36 revenue)
+Or spend 20,000 AC (delays withdrawal)
+
+Economics (Assuming 500 participants):
+
+Entry revenue: 500 × 30 ads × ₹1.20 = ₹18,000
+Ad revenue during event: 500 users × 200 ads average × ₹0.70 = ₹70,000
+Prize payout: ₹100 + (₹50×4) + (₹25×15) + (₹10×80) = ₹1,375
+Net profit: ₹86,625
+
+9.3.4 Flash Events (Surprise)
+Random Timing: Announced with 1-hour notice
+Duration: 2 hours
+Example Event Types:
+
+"Double Tap Power": Every tap counts as 2 taps (2-hour window)
+"Energy Madness": Unlimited energy (2 hours)
+"Ad Jackpot": Every rewarded video gives 500 AC bonus
+
+Entry: Watch 5 rewarded videos to activate
+Purpose: Create urgency, spike engagement, viral social sharing
+9.4 Social Features
+9.4.1 Referral System (Detailed)
+Referrer Benefits:
+
+Tier 1: Refer 1 friend → 2,000 AC
+
+Friend must watch 25 ads first
+Referrer notified when friend qualifies
+
+
+Tier 2: Refer 5 friends → 12,000 AC total (bonus 2,000)
+
+Unlocks "Recruiter" badge
+
+
+Tier 3: Refer 10 friends → 30,000 AC total (bonus 10,000)
+
+Unlocks "Influencer" badge
+Permanent 5% AC bonus on all missions
+
+
+
+Referee Benefits:
+
+1,000 AC sign-up bonus (instant)
+Starter mission unlocked (5,000 taps = 500 AC, no ads required)
+2× AC earnings for first 24 hours
+
+Sharing Mechanism:
+
+Unique referral code (6 characters)
+Shareable link (WhatsApp, Instagram, Facebook, SMS)
+QR code (for in-person referrals)
+Tracking: Dashboard shows referred friends' progress
+
+9.4.2 Team/Guild System
+Team Structure:
+
+Maximum 10 members per team
+Team name and icon customization
+Team chat (text only, moderated)
+
+Team Missions:
+
+Collective tap goals (entire team contributes)
+Example: "Team Challenge: 1,000,000 taps in 7 days"
+Rewards split among all members
+Bonus for top contributing member
+
+Team Benefits:
+
+10% cooldown reduction for all members
+Shared daily AC pool (bonus AC distributed daily)
+Team leaderboard ranking (bragging rights)
+
+Team Requirements:
+
+Each member must watch minimum 50 ads per week to stay active
+Inactive members auto-removed after 14 days
+
+Revenue Impact:
+
+Social pressure increases individual engagement
+Members watch more ads to help team
+Competitive teams watch 30-40% more ads
+
+9.4.3 Leaderboard Competitions (Detailed)
+Daily Leaderboard:
+
+Resets every midnight IST
+Ranks by taps completed that day
+Top 50 visible
+User's rank always visible (even if #5,231)
+
+Prizes:
+
+1st place: 2,000 AC
+2nd-5th: 1,000 AC
+6th-10th: 500 AC
+11th-50th: 200 AC
+
+Entry Requirement:
+
+Must watch 5 rewarded videos to be eligible for prizes
+Can compete without entry, but no prize
+
+Weekly Leaderboard:
+
+Resets every Monday 12 AM IST
+Ranks by total AC

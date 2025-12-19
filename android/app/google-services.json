@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "290002720108",
+    "project_id": "cryptominer-68837",
+    "storage_bucket": "cryptominer-68837.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:290002720108:android:7095e147eb166c826bcf49",
+        "android_client_info": {
+          "package_name": "com.supreet.idleminer"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "290002720108-52vub3iqa41bqdb4bss15h5b969fq01f.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.supreet.idleminer",
+            "certificate_hash": "1c1d1b857cf2100069ec9609f829fbeb0941512f"
+          }
+        },
+        {
+          "client_id": "290002720108-8hf7brg31okr1bputo77hhm3qdt6rnub.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDNmXH4KGNubQDbaUWCFzpNhn6KJ8E89Tk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "290002720108-8hf7brg31okr1bputo77hhm3qdt6rnub.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
