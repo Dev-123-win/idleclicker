@@ -15,6 +15,7 @@ import 'ui/screens/mission_screen.dart';
 import 'ui/screens/profile_screen.dart';
 import 'ui/screens/autoclicker_screen.dart';
 import 'ui/screens/leaderboard_screen.dart';
+import 'core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,8 +39,8 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
-  // Initialize Ad Service
-  await AdService().initialize();
+  // Initialize Notification Service
+  await NotificationService().initialize();
 
   runApp(const TapMineApp());
 }
@@ -53,8 +54,10 @@ class TapMineApp extends StatelessWidget {
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<GameService>(create: (_) => GameService()),
+        Provider<NotificationService>(create: (_) => NotificationService()),
         ChangeNotifierProvider<AdService>(create: (_) => AdService()),
       ],
+
       child: MaterialApp(
         title: 'TapMine',
         debugShowCheckedModeBanner: false,
@@ -76,33 +79,49 @@ class AppNavigator extends StatefulWidget {
 class _AppNavigatorState extends State<AppNavigator> {
   AppScreen _currentScreen = AppScreen.splash;
   UserModel? _currentUser;
-
   late AuthService _authService;
   late GameService _gameService;
+  late PageController _pageController;
+
+  final List<AppScreen> _gameScreens = [
+    AppScreen.missions,
+    AppScreen.home,
+    AppScreen.leaderboard,
+    AppScreen.autoClicker,
+    AppScreen.profile,
+  ];
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: 1); // Home is index 1
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _authService = context.read<AuthService>();
       _gameService = context.read<GameService>();
     });
   }
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _onSplashComplete() async {
     _authService = context.read<AuthService>();
+    _gameService = context.read<GameService>();
 
-    // Check if user is already logged in
     if (_authService.isLoggedIn) {
       final user = await _authService.getUserModel();
       if (user != null) {
-        _currentUser = user;
+        setState(() {
+          _currentUser = user;
+          _currentScreen = AppScreen.home;
+        });
         await _gameService.initialize(user);
-        setState(() => _currentScreen = AppScreen.home);
         return;
       }
     }
-
     setState(() => _currentScreen = AppScreen.login);
   }
 
@@ -112,9 +131,11 @@ class _AppNavigatorState extends State<AppNavigator> {
 
     final user = await _authService.getUserModel();
     if (user != null) {
-      _currentUser = user;
+      setState(() {
+        _currentUser = user;
+        _currentScreen = AppScreen.home;
+      });
       await _gameService.initialize(user);
-      setState(() => _currentScreen = AppScreen.home);
     }
   }
 
@@ -126,63 +147,107 @@ class _AppNavigatorState extends State<AppNavigator> {
   }
 
   void _navigateTo(AppScreen screen) {
-    setState(() => _currentScreen = screen);
+    if (_gameScreens.contains(screen)) {
+      final index = _gameScreens.indexOf(screen);
+      if (_currentScreen == screen) return;
+
+      setState(() => _currentScreen = screen);
+      if (_pageController.hasClients) {
+        _pageController.animateToPage(
+          index,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOutCubic,
+        );
+      }
+    } else {
+      setState(() => _currentScreen = screen);
+    }
   }
+
+  void _onPageChanged(int index) {
+    if (mounted) {
+      setState(() => _currentScreen = _gameScreens[index]);
+    }
+  }
+
+  DateTime? _lastPressedAt;
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 500),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) {
-        final slideAnimation = Tween<Offset>(
-          begin: const Offset(0.1, 0),
-          end: Offset.zero,
-        ).animate(animation);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (didPop) return;
 
-        final fadeAnimation = Tween<double>(
-          begin: 0.0,
-          end: 1.0,
-        ).animate(animation);
+        final now = DateTime.now();
+        final isWarningStep =
+            _lastPressedAt == null ||
+            now.difference(_lastPressedAt!) > const Duration(seconds: 2);
 
-        final scaleAnimation = Tween<double>(
-          begin: 0.95,
-          end: 1.0,
-        ).animate(animation);
-
-        return FadeTransition(
-          opacity: fadeAnimation,
-          child: SlideTransition(
-            position: slideAnimation,
-            child: ScaleTransition(scale: scaleAnimation, child: child),
-          ),
-        );
+        if (isWarningStep) {
+          _lastPressedAt = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.exit_to_app, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text(
+                    'Press back again to exit',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              backgroundColor: AppTheme.accent.withOpacity(0.9),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              margin: const EdgeInsets.all(16),
+            ),
+          );
+        } else {
+          SystemNavigator.pop();
+        }
       },
-      child: _buildCurrentScreen(),
+      child: _buildMainContent(),
     );
   }
 
-  Widget _buildCurrentScreen() {
-    switch (_currentScreen) {
-      case AppScreen.splash:
-        return SplashScreen(
-          key: const ValueKey('splash'),
-          onComplete: _onSplashComplete,
-        );
+  Widget _buildMainContent() {
+    if (_currentScreen == AppScreen.splash) {
+      return SplashScreen(
+        key: const ValueKey('splash'),
+        onComplete: _onSplashComplete,
+      );
+    }
 
-      case AppScreen.login:
-        return LoginScreen(
-          key: const ValueKey('login'),
-          onLoginSuccess: _onLoginSuccess,
-        );
+    if (_currentScreen == AppScreen.login) {
+      return LoginScreen(
+        key: const ValueKey('login'),
+        onLoginSuccess: _onLoginSuccess,
+      );
+    }
 
+    if (_currentUser == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return Scaffold(
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: _onPageChanged,
+        physics: const BouncingScrollPhysics(),
+        children: _gameScreens.map((screen) => _buildScreen(screen)).toList(),
+      ),
+    );
+  }
+
+  Widget _buildScreen(AppScreen screen) {
+    switch (screen) {
       case AppScreen.home:
-        if (_currentUser == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
         return HomeScreen(
-          key: const ValueKey('home'),
           user: _currentUser!,
           gameService: _gameService,
           onNavigateToMissions: () => _navigateTo(AppScreen.missions),
@@ -190,51 +255,34 @@ class _AppNavigatorState extends State<AppNavigator> {
           onNavigateToAutoClicker: () => _navigateTo(AppScreen.autoClicker),
           onNavigateToLeaderboard: () => _navigateTo(AppScreen.leaderboard),
         );
-
       case AppScreen.missions:
-        if (_currentUser == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
         return MissionScreen(
-          key: const ValueKey('missions'),
           user: _currentUser!,
           gameService: _gameService,
           onBack: () => _navigateTo(AppScreen.home),
           onMissionStarted: () => _navigateTo(AppScreen.home),
         );
-
       case AppScreen.profile:
-        if (_currentUser == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
         return ProfileScreen(
-          key: const ValueKey('profile'),
           user: _currentUser!,
           gameService: _gameService,
           onBack: () => _navigateTo(AppScreen.home),
           onLogout: _onLogout,
         );
-
       case AppScreen.autoClicker:
-        if (_currentUser == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
         return AutoClickerScreen(
-          key: const ValueKey('autoclicker'),
           user: _currentUser!,
           gameService: _gameService,
           onBack: () => _navigateTo(AppScreen.home),
         );
-
       case AppScreen.leaderboard:
-        if (_currentUser == null) {
-          return const Center(child: CircularProgressIndicator());
-        }
         return LeaderboardScreen(
-          key: const ValueKey('leaderboard'),
           user: _currentUser!,
+          gameService: _gameService,
           onBack: () => _navigateTo(AppScreen.home),
         );
+      default:
+        return const SizedBox.shrink();
     }
   }
 }

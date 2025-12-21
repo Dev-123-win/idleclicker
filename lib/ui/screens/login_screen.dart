@@ -168,56 +168,54 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: CyberBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: AnimatedBuilder(
-                animation: _formController,
-                builder: (context, child) {
-                  return Transform.translate(
-                    offset: Offset(0, _formSlide.value),
-                    child: Opacity(opacity: _formOpacity.value, child: child),
-                  );
-                },
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 60),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: AnimatedBuilder(
+              animation: _formController,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(0, _formSlide.value),
+                  child: Opacity(opacity: _formOpacity.value, child: child),
+                );
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 60),
 
-                    // Logo section
-                    _buildLogoSection(),
+                  // Logo section
+                  _buildLogoSection(),
 
-                    const SizedBox(height: 48),
+                  const SizedBox(height: 48),
 
-                    // Form section
-                    _buildForm(),
+                  // Form section
+                  _buildForm(),
 
-                    const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                    // Submit button
-                    _buildSubmitButton(),
+                  // Submit button
+                  _buildSubmitButton(),
 
-                    const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                    // Forgot password (login only)
-                    if (_isLogin) _buildForgotPassword(),
+                  // Forgot password (login only)
+                  if (_isLogin) _buildForgotPassword(),
 
-                    const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-                    // Toggle mode
-                    _buildToggleMode(),
+                  // Toggle mode
+                  _buildToggleMode(),
 
-                    const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                    // Legal Links
-                    _buildLegalLinks(),
+                  // Legal Links
+                  _buildLegalLinks(),
 
-                    const SizedBox(height: 40),
-                  ],
-                ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
           ),

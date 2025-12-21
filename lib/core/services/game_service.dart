@@ -7,6 +7,9 @@ import '../models/user_model.dart';
 import '../models/mission_model.dart';
 
 import 'sync_service.dart';
+import 'ad_service.dart';
+import 'package:flutter/services.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
@@ -29,6 +32,13 @@ class GameService {
   MissionModel? _activeMission;
   int _missionProgress = 0;
 
+  // Penalty state
+  DateTime? _penaltyEndTime;
+
+  // Ad-powered auto-clicker state
+  Timer? _boostTimer;
+  Duration _boostRemaining = Duration.zero;
+
   // Callbacks
   Function(UserModel)? onUserUpdate;
   Function(int)? onTapRegistered;
@@ -39,6 +49,13 @@ class GameService {
   MissionModel? get activeMission => _activeMission;
   int get missionProgress => _missionProgress;
   bool get isAutoClickerRunning => _autoClickerTimer?.isActive ?? false;
+  bool get isPenaltyActive =>
+      _penaltyEndTime != null && DateTime.now().isBefore(_penaltyEndTime!);
+  Duration get penaltyRemaining => isPenaltyActive
+      ? _penaltyEndTime!.difference(DateTime.now())
+      : Duration.zero;
+  bool get isBoostActive => _boostRemaining.inSeconds > 0;
+  Duration get boostRemaining => _boostRemaining;
 
   // ... (existing imports)
 
@@ -71,6 +88,39 @@ class GameService {
 
     // Fetch remote missions
     fetchMissions();
+
+    // Setup AdService callbacks
+    final adService = AdService();
+    adService.onAdFastClosed = () {
+      _activatePenalty();
+    };
+
+    adService.onAdStarted = () {
+      if (isAutoClickerRunning) {
+        stopAutoClicker();
+      }
+    };
+
+    adService.onAdCompleted = () {
+      if (isBoostActive || (_currentUser?.autoClickerActive ?? false)) {
+        startAutoClicker();
+      }
+    };
+  }
+
+  void _activatePenalty() {
+    _penaltyEndTime = DateTime.now().add(const Duration(seconds: 30));
+    stopAutoClicker();
+    onError?.call('Unusual activity detected. System syncing (30s)...');
+    notifyListenersOrUpdateUI();
+  }
+
+  Future<void> bypassPenaltyWithAd() async {
+    final result = await AdService().showRewardedAd();
+    if (result.isSuccess) {
+      _penaltyEndTime = null;
+      notifyListenersOrUpdateUI();
+    }
   }
 
   /// Fetch missions from Firestore
@@ -194,17 +244,23 @@ class GameService {
   }
 
   /// Register a tap
-  void registerTap() {
+  void registerTap({bool isAuto = false}) {
     if (_currentUser == null) return;
+    if (isPenaltyActive) return;
+    if (AdService().isAdShowing) return; // DON'T register taps during ads
     if (_currentUser!.isInMissionCooldown) return;
     if (_activeMission == null) return;
 
     // Check energy
     final currentEnergy = _currentUser!.getCurrentEnergy();
     if (currentEnergy <= 0) {
-      onError?.call(
-        'You\'re out of energy! Take a short break or refill with AppCoins.',
-      );
+      if (!isAutoClickerRunning) {
+        HapticFeedback.mediumImpact();
+        onError?.call(
+          'You\'re out of energy! Take a short break or refill with AppCoins.',
+        );
+      }
+      stopAutoClicker();
       return;
     }
 
@@ -213,8 +269,16 @@ class GameService {
     _missionProgress++;
     _isDirty = true;
 
+    // Trigger Mission Ads
+    if (_activeMission!.adCheckpoints.contains(_missionProgress)) {
+      AdService().showInterstitialAd();
+    }
+
+    // Trigger Haptic Feedback based on setting
+    _triggerHapticFeedback(isAuto: isAuto);
+
     // Update local user state
-    if (_pendingTaps % 100 == 0) {
+    if (_missionProgress % 100 == 0) {
       _currentUser = _currentUser!.copyWith(
         energy: (currentEnergy - 1).clamp(0, _currentUser!.maxEnergy),
         lastEnergyUpdate: DateTime.now(),
@@ -229,7 +293,7 @@ class GameService {
     }
 
     // Save every 50 taps
-    if (_pendingTaps % 50 == 0) {
+    if (_missionProgress % 50 == 0) {
       _saveCachedState();
     }
   }
@@ -259,6 +323,9 @@ class GameService {
 
     _activeMission = mission;
     _missionProgress = 0;
+
+    // Enable wakelock when mission is active to keep screen on
+    WakelockPlus.enable();
 
     return true;
   }
@@ -301,6 +368,9 @@ class GameService {
     _missionProgress = 0;
     _isDirty = true;
 
+    // Disable wakelock when mission completed
+    WakelockPlus.disable();
+
     // Immediate sync on mission completion
     _syncToFirestore();
 
@@ -340,6 +410,40 @@ class GameService {
     }
   }
 
+  /// Trigger haptic feedback based on user preference
+  void _triggerHapticFeedback({bool isAuto = false}) {
+    if (_currentUser == null) return;
+
+    // Don't vibrate for AutoClicker if in ECO mode
+    if (isAuto && _currentUser!.hapticSetting == 'eco') {
+      if (_missionProgress % 10 == 0) {
+        HapticFeedback.lightImpact();
+      }
+      return;
+    }
+
+    switch (_currentUser!.hapticSetting) {
+      case 'strong':
+        HapticFeedback.mediumImpact();
+        break;
+      case 'eco':
+        HapticFeedback.lightImpact();
+        break;
+      case 'off':
+      default:
+        break;
+    }
+  }
+
+  /// Update user's haptic preference
+  Future<void> updateUserHaptic(String setting) async {
+    if (_currentUser == null) return;
+    _currentUser = _currentUser!.copyWith(hapticSetting: setting);
+    _isDirty = true;
+    await _syncToFirestore();
+    onUserUpdate?.call(_currentUser!);
+  }
+
   /// Toggle auto-clicker
   void toggleAutoClicker() {
     if (_autoClickerTimer?.isActive ?? false) {
@@ -353,6 +457,7 @@ class GameService {
   void startAutoClicker() {
     if (_currentUser == null || _activeMission == null) return;
     if (_currentUser!.isInMissionCooldown) return;
+    if (AdService().isAdShowing) return; // Prevent starting during an ad
 
     // Calculate interval based on tier
     int tapsPerSecond = 5; // Free tier
@@ -379,7 +484,7 @@ class GameService {
         onError?.call('Auto-clicker paused: Out of energy!');
         return;
       }
-      registerTap();
+      registerTap(isAuto: true);
     });
 
     _currentUser = _currentUser!.copyWith(autoClickerActive: true);
@@ -448,6 +553,51 @@ class GameService {
     onUserUpdate?.call(_currentUser!);
 
     return true;
+  }
+
+  /// Ad-Value Exchange: Skip Taps (Watch Ad = -300 Taps)
+  Future<void> skipTapsByWatchingAd() async {
+    if (_activeMission == null || isPenaltyActive) return;
+
+    final result = await AdService().showRewardedAd();
+    if (result.isSuccess) {
+      _missionProgress = (_missionProgress + 300).clamp(
+        0,
+        _activeMission!.tapRequirement,
+      );
+      onTapRegistered?.call(_missionProgress);
+
+      if (_missionProgress >= _activeMission!.tapRequirement) {
+        _completeMission();
+      }
+    }
+  }
+
+  /// Ad-Value Exchange: Auto-Clicker Boost (Watch Ad = 2 Mins)
+  Future<void> activateBoostByWatchingAd() async {
+    if (isPenaltyActive) return;
+
+    final result = await AdService().showRewardedAd();
+    if (result.isSuccess) {
+      _boostRemaining = _boostRemaining + const Duration(minutes: 2);
+      _startBoostTimer();
+      startAutoClicker();
+    }
+  }
+
+  void _startBoostTimer() {
+    _boostTimer?.cancel();
+    _boostTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_boostRemaining.inSeconds > 0) {
+        _boostRemaining -= const Duration(seconds: 1);
+        notifyListenersOrUpdateUI();
+      } else {
+        _boostTimer?.cancel();
+        if (!(_currentUser?.hasPremiumAutoClicker ?? false)) {
+          stopAutoClicker();
+        }
+      }
+    });
   }
 
   /// Force sync via SyncService
@@ -568,11 +718,58 @@ class GameService {
     }
   }
 
+  /// Fetch genuine leaderboard data - Updates only once every 24 hours (Free Tier Optimized)
+  Future<List<Map<String, dynamic>>> getLeaderboardData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastUpdateStr = prefs.getString('lastLeaderboardUpdate');
+      final cachedData = prefs.getString('cachedLeaderboard');
+
+      if (lastUpdateStr != null && cachedData != null) {
+        final lastUpdate = DateTime.parse(lastUpdateStr);
+        final now = DateTime.now();
+
+        // If less than 24 hours have passed, return the cached data immediately
+        if (now.difference(lastUpdate).inHours < 24) {
+          debugPrint(
+            'GameService: Using cached leaderboard (Updates in ${24 - now.difference(lastUpdate).inHours}h)',
+          );
+          final List<dynamic> decoded = jsonDecode(cachedData);
+          return decoded.cast<Map<String, dynamic>>();
+        }
+      }
+
+      // 24h passed or no cache: Fetch from Worker
+      final response = await http.get(
+        Uri.parse('$_workerUrl/api/leaderboard'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+
+        // Save to cache for the next 24 hours
+        await prefs.setString(
+          'lastLeaderboardUpdate',
+          DateTime.now().toIso8601String(),
+        );
+        await prefs.setString('cachedLeaderboard', response.body);
+
+        return data.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('GameService: Leaderboard fetch error: $e');
+      return [];
+    }
+  }
+
   /// Dispose timers
   void dispose() {
     _energyRegenTimer?.cancel();
     _syncTimer?.cancel();
     _autoClickerTimer?.cancel();
+    WakelockPlus.disable(); // Ensure wakelock is released
     _saveCachedState();
     _syncToFirestore();
   }

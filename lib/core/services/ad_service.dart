@@ -14,13 +14,14 @@ class AdService with ChangeNotifier {
   DateTime? _lastAdShown;
   int _totalAdsWatched = 0;
 
-  // Callbacks for auto-clicker pause/resume
   VoidCallback? onAdStarted;
   VoidCallback? onAdCompleted;
   VoidCallback? onAdFailed;
+  VoidCallback? onAdFastClosed; // New: Triggered if closed < 2s
 
   // For race condition handling
   bool _isAdLockAcquired = false;
+  DateTime? _adStartTime; // New: Track when ad was shown
 
   // Preloaded ads
   InterstitialAd? _interstitialAd;
@@ -128,7 +129,17 @@ class AdService with ChangeNotifier {
           Future.delayed(const Duration(seconds: 60), _loadNativeAd);
         },
       ),
-      factoryId: 'listTile',
+      nativeTemplateStyle: NativeTemplateStyle(
+        templateType: TemplateType.medium,
+        mainBackgroundColor: Colors.white,
+        cornerRadius: 12.0,
+        callToActionTextStyle: NativeTemplateTextStyle(
+          backgroundColor: Colors.blue,
+          textColor: Colors.white,
+          style: NativeTemplateFontStyle.bold,
+          size: 16.0,
+        ),
+      ),
     );
     _nativeAd!.load();
   }
@@ -174,6 +185,14 @@ class AdService with ChangeNotifier {
           _lastAdShown = DateTime.now();
           _totalAdsWatched++;
 
+          // Penalty Detection: Check if ad was closed too fast (< 2 seconds)
+          if (_adStartTime != null) {
+            final duration = DateTime.now().difference(_adStartTime!);
+            if (duration.inSeconds < 2) {
+              onAdFastClosed?.call();
+            }
+          }
+
           ad.dispose();
           _interstitialAd = null;
           _loadInterstitialAd(); // Preload next ad
@@ -202,6 +221,7 @@ class AdService with ChangeNotifier {
         },
       );
 
+      _adStartTime = DateTime.now();
       await _interstitialAd!.show();
 
       return await completer.future.timeout(
@@ -248,6 +268,14 @@ class AdService with ChangeNotifier {
           _lastAdShown = DateTime.now();
           _totalAdsWatched++;
 
+          // Penalty Detection
+          if (_adStartTime != null) {
+            final duration = DateTime.now().difference(_adStartTime!);
+            if (duration.inSeconds < 2) {
+              onAdFastClosed?.call();
+            }
+          }
+
           ad.dispose();
           _rewardedAd = null;
           _loadRewardedAd(); // Preload next ad
@@ -276,6 +304,7 @@ class AdService with ChangeNotifier {
         },
       );
 
+      _adStartTime = DateTime.now();
       await _rewardedAd!.show(
         onUserEarnedReward: (ad, reward) {
           earnedReward = reward.amount.toInt();

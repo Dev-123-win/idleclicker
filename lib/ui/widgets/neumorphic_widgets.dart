@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_theme.dart';
+import '../../core/services/game_service.dart';
 
 /// Neumorphic Container Widget
 class NeumorphicContainer extends StatelessWidget {
@@ -226,6 +229,7 @@ class NeumorphicCard extends StatelessWidget {
   final EdgeInsets margin;
   final double borderRadius;
   final VoidCallback? onTap;
+  final Color? color;
 
   const NeumorphicCard({
     super.key,
@@ -234,6 +238,7 @@ class NeumorphicCard extends StatelessWidget {
     this.margin = EdgeInsets.zero,
     this.borderRadius = 20,
     this.onTap,
+    this.color,
   });
 
   @override
@@ -244,7 +249,10 @@ class NeumorphicCard extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: padding,
-          decoration: NeumorphicDecoration.flat(borderRadius: borderRadius),
+          decoration: NeumorphicDecoration.flat(
+            borderRadius: borderRadius,
+            color: color ?? AppTheme.surface,
+          ),
           child: child,
         ),
       ),
@@ -289,10 +297,7 @@ class _NeumorphicIconButtonState extends State<NeumorphicIconButton> {
         width: widget.size,
         height: widget.size,
         decoration: _isPressed
-            ? NeumorphicDecoration.flat(
-                borderRadius: widget.size / 2,
-                isPressed: true,
-              )
+            ? NeumorphicDecoration.concave(borderRadius: widget.size / 2)
             : NeumorphicDecoration.convex(borderRadius: widget.size / 2),
         child: Icon(
           widget.icon,
@@ -311,6 +316,7 @@ class NeumorphicProgressBar extends StatelessWidget {
   final Color? progressColor;
   final Color? backgroundColor;
   final double borderRadius;
+  final String? heroTag;
 
   const NeumorphicProgressBar({
     super.key,
@@ -319,11 +325,12 @@ class NeumorphicProgressBar extends StatelessWidget {
     this.progressColor,
     this.backgroundColor,
     this.borderRadius = 6,
+    this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    Widget progressBar = Container(
       height: height,
       decoration: NeumorphicDecoration.concave(borderRadius: borderRadius),
       child: ClipRRect(
@@ -354,6 +361,11 @@ class NeumorphicProgressBar extends StatelessWidget {
         ),
       ),
     );
+
+    if (heroTag != null) {
+      return Hero(tag: heroTag!, child: progressBar);
+    }
+    return progressBar;
   }
 }
 
@@ -379,6 +391,9 @@ class EnergyBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final percentage = current / max;
+    final isLow = percentage < 0.15; // Show refill below 15%
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -387,7 +402,11 @@ class EnergyBar extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.bolt, color: _getEnergyColor(), size: 18),
+                Icon(
+                  isLow ? Icons.battery_alert_rounded : Icons.bolt,
+                  color: _getEnergyColor(),
+                  size: 18,
+                ),
                 const SizedBox(width: 4),
                 const Text(
                   'Energy',
@@ -399,14 +418,17 @@ class EnergyBar extends StatelessWidget {
                 ),
               ],
             ),
-            Text(
-              '$current / $max',
-              style: TextStyle(
-                color: _getEnergyColor(),
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+            if (isLow)
+              const RefillButton()
+            else
+              Text(
+                '$current / $max',
+                style: TextStyle(
+                  color: _getEnergyColor(),
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 6),
@@ -414,8 +436,209 @@ class EnergyBar extends StatelessWidget {
           value: current / max,
           height: height,
           progressColor: _getEnergyColor(),
+          heroTag: 'energy_bar',
         ),
       ],
+    );
+  }
+}
+
+/// Shared Coin Display with Hero animation for Data Continuity
+class SharedCoinDisplay extends StatelessWidget {
+  final int amount;
+  final double iconSize;
+  final double fontSize;
+  final bool showLabel;
+  final bool isVertical;
+  final MainAxisAlignment alignment;
+
+  const SharedCoinDisplay({
+    super.key,
+    required this.amount,
+    this.iconSize = 24,
+    this.fontSize = 20,
+    this.showLabel = false,
+    this.isVertical = false,
+    this.alignment = MainAxisAlignment.start,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Hero(
+      tag: 'coin_display',
+      flightShuttleBuilder:
+          (
+            flightContext,
+            animation,
+            flightDirection,
+            fromHeroContext,
+            toHeroContext,
+          ) {
+            return DefaultTextStyle(
+              style: DefaultTextStyle.of(toHeroContext).style,
+              child: toHeroContext.widget,
+            );
+          },
+      child: Material(
+        color: Colors.transparent,
+        child: isVertical ? _buildVertical() : _buildHorizontal(),
+      ),
+    );
+  }
+
+  Widget _buildHorizontal() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: alignment,
+      children: [
+        Image.asset('assets/AppCoin.png', width: iconSize, height: iconSize),
+        const SizedBox(width: 8),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _formatNumber(amount),
+              style: TextStyle(
+                color: AppTheme.primary,
+                fontSize: fontSize,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            if (showLabel)
+              const Text(
+                'AppCoins',
+                style: TextStyle(color: Colors.white38, fontSize: 10),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildVertical() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Image.asset('assets/AppCoin.png', width: iconSize, height: iconSize),
+        const SizedBox(height: 4),
+        Text(
+          _formatNumber(amount),
+          style: TextStyle(
+            color: AppTheme.primary,
+            fontSize: fontSize,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        if (showLabel)
+          const Text(
+            'AppCoins',
+            style: TextStyle(color: Colors.white38, fontSize: 10),
+          ),
+      ],
+    );
+  }
+
+  String _formatNumber(int number) {
+    if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(1)}M';
+    }
+    if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    }
+    return number.toString();
+  }
+}
+
+class RefillButton extends StatelessWidget {
+  const RefillButton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        final gameService = context.read<GameService>();
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: AppTheme.background,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: const Text(
+              'Low Energy!',
+              style: TextStyle(color: Colors.white),
+            ),
+            content: const Text(
+              'Want to refill your energy to keep mining?',
+              style: TextStyle(color: Colors.white70),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'NOT NOW',
+                  style: TextStyle(color: Colors.white38),
+                ),
+              ),
+              NeumorphicButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  gameService.refillEnergyWithAC();
+                },
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                child: const Text(
+                  'REFILL (2000 AC)',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      child:
+          Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppTheme.error.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.flash_on, color: AppTheme.error, size: 14),
+                    SizedBox(width: 4),
+                    const Text(
+                      'REFILL',
+                      style: TextStyle(
+                        color: AppTheme.error,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+              .animate(onPlay: (c) => c.repeat(reverse: true))
+              .shimmer(duration: 1200.ms, color: Colors.white54)
+              .scale(
+                begin: const Offset(0.95, 0.95),
+                end: const Offset(1.05, 1.05),
+                duration: 800.ms,
+              ),
     );
   }
 }
@@ -429,7 +652,6 @@ class AppSnackBar {
     IconData? icon,
     Duration duration = const Duration(seconds: 3),
   }) {
-    // Clear any existing snackbars first
     ScaffoldMessenger.of(context).clearSnackBars();
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -453,7 +675,7 @@ class AppSnackBar {
         ),
         backgroundColor: backgroundColor ?? AppTheme.surfaceLight,
         duration: duration,
-        dismissDirection: DismissDirection.down, // Swipe down to dismiss
+        dismissDirection: DismissDirection.down,
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -488,113 +710,4 @@ class AppSnackBar {
       icon: Icons.warning_amber_rounded,
     );
   }
-}
-
-/// Cyber Background with moving industrial grid
-class CyberBackground extends StatefulWidget {
-  final Widget child;
-  const CyberBackground({super.key, required this.child});
-
-  @override
-  State<CyberBackground> createState() => _CyberBackgroundState();
-}
-
-class _CyberBackgroundState extends State<CyberBackground>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(seconds: 10),
-      vsync: this,
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Main dark background
-        Container(color: AppTheme.background),
-
-        // Moving Grid
-        AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return CustomPaint(
-              size: Size.infinite,
-              painter: _GridPainter(
-                progress: _controller.value,
-                color: AppTheme.primary.withValues(alpha: 0.03),
-              ),
-            );
-          },
-        ),
-
-        // Scanning line
-        AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) {
-            return Positioned(
-              top: MediaQuery.of(context).size.height * _controller.value,
-              left: 0,
-              right: 0,
-              child: Container(
-                height: 2,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.transparent,
-                      AppTheme.primary.withValues(alpha: 0.05),
-                      Colors.transparent,
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-
-        widget.child,
-      ],
-    );
-  }
-}
-
-class _GridPainter extends CustomPainter {
-  final double progress;
-  final Color color;
-
-  _GridPainter({required this.progress, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.0;
-
-    const spacing = 40.0;
-    final offset = progress * spacing;
-
-    // Vertical lines
-    for (double x = -spacing + offset; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-
-    // Horizontal lines
-    for (double y = -spacing + offset; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _GridPainter oldDelegate) => true;
 }

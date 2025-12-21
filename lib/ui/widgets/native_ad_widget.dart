@@ -36,40 +36,13 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
     final adWidget = _adService.getNativeAdWidget();
 
     if (adWidget == null) {
-      // Show placeholder while loading
-      return Container(
-        height: 100,
-        margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white10),
-        ),
-        child: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white24,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Loading...',
-                style: TextStyle(color: Colors.white24, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      );
+      // Transparent placeholder to reserve space without showing loading UI
+      return const SizedBox(height: 320);
     }
 
     return Container(
-      height: 100,
+      height: 320,
+
       margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: AppTheme.surfaceDark,

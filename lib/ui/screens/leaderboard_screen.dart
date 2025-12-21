@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../core/models/user_model.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../core/services/game_service.dart';
 import '../widgets/neumorphic_widgets.dart';
 import '../widgets/native_ad_widget.dart';
 
 /// Leaderboard Screen
 class LeaderboardScreen extends StatefulWidget {
   final UserModel user;
+  final GameService gameService;
   final VoidCallback onBack;
 
   const LeaderboardScreen({
     super.key,
     required this.user,
+    required this.gameService,
     required this.onBack,
   });
 
@@ -44,72 +47,48 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   Future<void> _loadLeaderboard() async {
-    // Simulate loading from Firestore
-    await Future.delayed(const Duration(seconds: 1));
+    setState(() => _isLoading = true);
 
-    // Generate mock data
-    final mockUsers = _generateMockLeaderboard();
+    try {
+      final rawData = await widget.gameService.getLeaderboardData();
 
-    setState(() {
-      _dailyLeaderboard.addAll(mockUsers);
-      _weeklyLeaderboard.addAll(
-        mockUsers
-            .map(
-              (e) => e.copyWith(
-                taps: (e.taps * 7).round(),
-                coins: (e.coins * 7).round(),
-              ),
-            )
-            .toList(),
-      );
-      _allTimeLeaderboard.addAll(
-        mockUsers
-            .map(
-              (e) => e.copyWith(
-                taps: (e.taps * 30).round(),
-                coins: (e.coins * 30).round(),
-              ),
-            )
-            .toList(),
-      );
+      setState(() {
+        _dailyLeaderboard.clear();
+        _weeklyLeaderboard.clear();
+        _allTimeLeaderboard.clear();
 
-      // Find user's rank
-      _userRank =
-          _dailyLeaderboard.indexWhere((e) => e.email == widget.user.email) + 1;
-      if (_userRank == 0) {
-        _userRank = 156; // User not in top, assign random rank
-      }
+        for (int i = 0; i < rawData.length; i++) {
+          final data = rawData[i];
+          final entry = LeaderboardEntry(
+            rank: i + 1,
+            username: data['email']?.split('@')[0] ?? 'Explorer',
+            email: data['email'] ?? '',
+            taps: data['totalTaps'] ?? 0,
+            coins: data['appCoins'] ?? 0,
+            avatar: (data['email'] ?? 'E')[0].toUpperCase(),
+          );
+          _dailyLeaderboard.add(entry);
+        }
 
-      _isLoading = false;
-    });
+        // For now, same data for all timeframes as backend logic is evolving
+        _weeklyLeaderboard.addAll(_dailyLeaderboard);
+        _allTimeLeaderboard.addAll(_dailyLeaderboard);
 
-    _animController.forward();
-  }
+        // Find user's rank in top 10
+        final index = _dailyLeaderboard.indexWhere(
+          (e) => e.email == widget.user.email,
+        );
+        _userRank = index != -1 ? index + 1 : 0;
 
-  List<LeaderboardEntry> _generateMockLeaderboard() {
-    final names = [
-      'TapMaster_Pro',
-      'GoldDigger99',
-      'SpeedTapper',
-      'CoinKing',
-      'MissionHunter',
-      'AutoClicker_1',
-      'DiamondHands',
-      'EnergyMax',
-      'TapLegend',
-      'CryptoMiner',
-    ];
+        _isLoading = false;
+      });
 
-    return List.generate(10, (i) {
-      return LeaderboardEntry(
-        rank: i + 1,
-        username: names[i],
-        email: '${names[i].toLowerCase()}@email.com',
-        taps: (10000 - (i * 800)) + (i * 100),
-        coins: (5000 - (i * 400)) + (i * 50),
-        avatar: names[i][0],
-      );
-    });
+      _animController.reset();
+      _animController.forward();
+    } catch (e) {
+      debugPrint('Leaderboard: Error loading data: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
   List<LeaderboardEntry> get _currentLeaderboard {
@@ -134,31 +113,27 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: CyberBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildTimeframeTabs(),
-              _buildUserRankCard(),
-              const NativeAdWidget(),
-              Expanded(
-                child: _isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppTheme.primary,
-                        ),
-                      )
-                    : CustomScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        slivers: [
-                          SliverToBoxAdapter(child: _buildPodium()),
-                          _buildLeaderboardList(),
-                        ],
-                      ),
-              ),
-            ],
-          ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildTimeframeTabs(),
+            _buildUserRankCard(),
+            const NativeAdWidget(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: CircularProgressIndicator(color: AppTheme.primary),
+                    )
+                  : CustomScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      slivers: [
+                        SliverToBoxAdapter(child: _buildPodium()),
+                        _buildLeaderboardList(),
+                      ],
+                    ),
+            ),
+          ],
         ),
       ),
     );
@@ -174,16 +149,35 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             onPressed: widget.onBack,
           ),
           const SizedBox(width: 16),
-          const Text(
-            'LEADERBOARD',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 3,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'LEADERBOARD',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 3,
+                ),
+              ),
+              Text(
+                'Updates every 24 hours',
+                style: TextStyle(
+                  color: AppTheme.primary.withValues(alpha: 0.7),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 1,
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
+          SharedCoinDisplay(
+            amount: widget.user.appCoins,
+            iconSize: 28,
+            fontSize: 20,
+          ),
           IconButton(
             onPressed: () {
               setState(() => _isLoading = true);
@@ -272,7 +266,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               ),
               child: Center(
                 child: Text(
-                  '#$_userRank',
+                  _userRank > 0 ? '#$_userRank' : '-',
                   style: const TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
@@ -291,9 +285,9 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                     style: TextStyle(color: Colors.white54, fontSize: 12),
                   ),
                   Text(
-                    _userRank <= 10
+                    _userRank > 0 && _userRank <= 10
                         ? 'Top 10! 🏆'
-                        : _userRank <= 100
+                        : _userRank > 0 && _userRank <= 100
                         ? 'Top 100! ⭐'
                         : 'Keep tapping!',
                     style: const TextStyle(
@@ -604,7 +598,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.toll, color: AppTheme.primary, size: 16),
+                  Image.asset('assets/AppCoin.png', width: 16, height: 16),
                   const SizedBox(width: 4),
                   Text(
                     _formatNumber(entry.coins),

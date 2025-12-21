@@ -77,7 +77,11 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
     _scaleController.forward();
 
     // Instant haptic feedback
-    HapticFeedback.lightImpact();
+    if (widget.currentEnergy <= 0) {
+      HapticFeedback.mediumImpact();
+    } else {
+      HapticFeedback.lightImpact();
+    }
   }
 
   void _handleTapUp(TapUpDetails details) {

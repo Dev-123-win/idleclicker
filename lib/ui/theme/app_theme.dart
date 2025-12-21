@@ -18,8 +18,8 @@ class AppTheme {
   static const Color warning = Color(0xFFFFAB00);
 
   // Neumorphic shadow colors
-  static Color get neumorphicDark => Colors.black.withValues(alpha: 0.5);
-  static Color get neumorphicLight => Colors.white.withValues(alpha: 0.05);
+  static Color get neumorphicDark => Colors.black.withValues(alpha: 0.35);
+  static Color get neumorphicLight => Colors.white.withValues(alpha: 0.12);
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -161,24 +161,24 @@ class NeumorphicDecoration {
                 color: AppTheme.neumorphicDark,
                 offset: const Offset(2, 2),
                 blurRadius: 4,
-                spreadRadius: -2,
+                spreadRadius: -1,
               ),
               BoxShadow(
                 color: AppTheme.neumorphicLight,
-                offset: const Offset(-2, -2),
+                offset: const Offset(-1, -1),
                 blurRadius: 4,
-                spreadRadius: -2,
+                spreadRadius: -1,
               ),
             ]
           : [
               BoxShadow(
                 color: AppTheme.neumorphicDark,
-                offset: const Offset(6, 6),
+                offset: const Offset(5, 5),
                 blurRadius: 12,
               ),
               BoxShadow(
                 color: AppTheme.neumorphicLight,
-                offset: const Offset(-6, -6),
+                offset: const Offset(-5, -5),
                 blurRadius: 12,
               ),
             ],
@@ -200,15 +200,15 @@ class NeumorphicDecoration {
       boxShadow: [
         BoxShadow(
           color: AppTheme.neumorphicDark,
-          offset: const Offset(4, 4),
-          blurRadius: 8,
-          spreadRadius: -4,
+          offset: const Offset(3, 3),
+          blurRadius: 6,
+          spreadRadius: -1,
         ),
         BoxShadow(
           color: AppTheme.neumorphicLight,
-          offset: const Offset(-4, -4),
-          blurRadius: 8,
-          spreadRadius: -4,
+          offset: const Offset(-2, -2),
+          blurRadius: 6,
+          spreadRadius: -1,
         ),
       ],
     );
@@ -228,12 +228,12 @@ class NeumorphicDecoration {
       boxShadow: [
         BoxShadow(
           color: AppTheme.neumorphicDark,
-          offset: const Offset(6, 6),
+          offset: const Offset(5, 5),
           blurRadius: 12,
         ),
         BoxShadow(
           color: AppTheme.neumorphicLight,
-          offset: const Offset(-6, -6),
+          offset: const Offset(-5, -5),
           blurRadius: 12,
         ),
       ],

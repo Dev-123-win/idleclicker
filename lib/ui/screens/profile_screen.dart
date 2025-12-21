@@ -272,22 +272,20 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: CyberBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              children: [
-                _buildHeader(),
-                _buildProfileCard(),
-                _buildStatsGrid(),
-                _buildReferralSection(),
-                _buildWithdrawSection(),
-                _buildAccountSettings(),
-                _buildLogoutButton(),
-                const SizedBox(height: 40),
-              ],
-            ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildProfileCard(),
+              _buildStatsGrid(),
+              _buildReferralSection(),
+              _buildWithdrawSection(),
+              _buildAccountSettings(),
+              _buildLogoutButton(),
+              const SizedBox(height: 40),
+            ],
           ),
         ),
       ),
@@ -423,11 +421,15 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _buildStatCard(
-                  icon: Icons.toll,
-                  value: _formatNumber(widget.user.appCoins),
-                  label: 'AppCoins',
-                  color: AppTheme.primary,
+                child: NeumorphicCard(
+                  padding: const EdgeInsets.all(16),
+                  child: SharedCoinDisplay(
+                    amount: widget.user.appCoins,
+                    iconSize: 28,
+                    fontSize: 20,
+                    showLabel: true,
+                    isVertical: true,
+                  ),
                 ),
               ),
             ],
@@ -482,7 +484,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _buildStatCard({
-    required IconData icon,
+    IconData? icon,
+    Widget? iconWidget,
     required String value,
     required String label,
     required Color color,
@@ -491,7 +494,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          Icon(icon, color: color, size: 28),
+          if (iconWidget != null)
+            iconWidget
+          else
+            Icon(icon!, color: color, size: 28),
           const SizedBox(height: 8),
           Text(
             value,
@@ -554,9 +560,21 @@ class _ProfileScreenState extends State<ProfileScreen>
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${widget.user.appCoins} / 100,000 AC',
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                Row(
+                  children: [
+                    Text(
+                      '${widget.user.appCoins} / 100,000 ',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Image.asset('assets/AppCoin.png', width: 12, height: 12),
+                    const Text(
+                      ' AC',
+                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                  ],
                 ),
                 Text(
                   canWithdraw
@@ -740,9 +758,18 @@ class _ProfileScreenState extends State<ProfileScreen>
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Share your code to earn 2,000 AC!',
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+            Row(
+              children: [
+                const Text(
+                  'Share your code to earn 2,000 ',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                Image.asset('assets/AppCoin.png', width: 14, height: 14),
+                const Text(
+                  ' AC!',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Container(
@@ -785,13 +812,26 @@ class _ProfileScreenState extends State<ProfileScreen>
               const SizedBox(height: 20),
               NeumorphicButton(
                 onPressed: _showRedeemReferralDialog,
-                child: const Center(
-                  child: Text(
-                    'REDEEM CODE (+1000 AC)',
-                    style: TextStyle(
-                      color: Colors.black,
-                      fontWeight: FontWeight.bold,
-                    ),
+                child: Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'REDEEM CODE (+1000 ',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Image.asset('assets/AppCoin.png', width: 14, height: 14),
+                      const Text(
+                        ' AC)',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

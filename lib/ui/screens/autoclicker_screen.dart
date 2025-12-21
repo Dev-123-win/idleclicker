@@ -223,15 +223,12 @@ class _AutoClickerScreenState extends State<AutoClickerScreen>
   }
 
   Future<void> _watchAdForBoost() async {
-    final result = await _adService.showRewardedAd();
-    if (result.isSuccess && mounted) {
-      // Add 15 minutes to rental
+    await widget.gameService.activateBoostByWatchingAd();
+    if (mounted) {
       setState(() {
-        _rentalRemaining += const Duration(minutes: 15);
+        _rentalRemaining = widget.gameService.boostRemaining;
       });
-      if (mounted) {
-        AppSnackBar.success(context, '+15 minutes added!');
-      }
+      AppSnackBar.success(context, '+2 minutes added!');
     }
   }
 
@@ -251,32 +248,30 @@ class _AutoClickerScreenState extends State<AutoClickerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: CyberBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    children: [
-                      _buildAutoClickerVisual(),
-                      const SizedBox(height: 24),
-                      _buildStatsCard(),
-                      const SizedBox(height: 24),
-                      _buildSpeedSelector(),
-                      const SizedBox(height: 24),
-                      _buildControlButtons(),
-                      const SizedBox(height: 24),
-                      _buildAdBoostCard(),
-                    ],
-                  ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _buildAutoClickerVisual(),
+                    const SizedBox(height: 24),
+                    _buildStatsCard(),
+                    const SizedBox(height: 24),
+                    _buildSpeedSelector(),
+                    const SizedBox(height: 24),
+                    _buildControlButtons(),
+                    const SizedBox(height: 24),
+                    _buildAdBoostCard(),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

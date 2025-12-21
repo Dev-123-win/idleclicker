@@ -5,11 +5,14 @@ import 'package:flutter/services.dart';
 import '../../core/models/user_model.dart';
 import '../../core/models/mission_model.dart';
 import '../../core/services/game_service.dart';
-import '../../core/services/ad_service.dart';
 import '../../ui/theme/app_theme.dart';
 import '../widgets/neumorphic_widgets.dart';
 import '../widgets/tap_button.dart';
 import '../widgets/native_ad_widget.dart';
+import '../../core/services/notification_service.dart';
+import '../../core/services/payout_service.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
 
 /// Main Home Screen with Tap Interface
 class HomeScreen extends StatefulWidget {
@@ -48,6 +51,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   Duration _remainingCooldown = Duration.zero;
 
   final math.Random _random = math.Random();
+  DateTime? _lastManualTap;
+  int _fastTapCounter = 0;
 
   @override
   void initState() {
@@ -164,6 +169,26 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       return;
     }
 
+    // Anti-Spam Barrier
+    final now = DateTime.now();
+    if (_lastManualTap != null) {
+      final diff = now.difference(_lastManualTap!).inMilliseconds;
+      if (diff < 60) {
+        _fastTapCounter++;
+        if (_fastTapCounter > 20) {
+          AppSnackBar.warning(
+            context,
+            'Whoa, slow down! Excessive speed may cause sync issues.',
+          );
+          _fastTapCounter = 0;
+          return;
+        }
+      } else {
+        _fastTapCounter = 0;
+      }
+    }
+    _lastManualTap = now;
+
     // Animations and haptics handled by TapButton
     widget.gameService.registerTap();
   }
@@ -188,6 +213,189 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
     final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
     return '$minutes:$seconds';
+  }
+
+  Widget _buildPayoutTicker() {
+    return StreamBuilder<List<PayoutModel>>(
+      stream: PayoutService().getPayoutTicker(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const SizedBox(height: 38);
+        }
+
+        final payout = snapshot.data![0];
+        return Container(
+              height: 30,
+              width: double.infinity,
+              margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.check_circle,
+                    color: payout.isReal
+                        ? AppTheme.primary
+                        : Colors.greenAccent,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'User ${payout.userName} just withdrew ₹${payout.amount.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  const Text(
+                    '• SUCCESS',
+                    style: TextStyle(
+                      color: Colors.greenAccent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+              ),
+            )
+            .animate(key: ValueKey(payout.userName))
+            .fadeIn()
+            .slideY(begin: 1.0, end: 0.0);
+      },
+    );
+  }
+
+  void _showSkipCooldownDialog() {
+    final remainingMinutes =
+        widget.gameService.currentUser?.remainingMissionCooldown.inMinutes ?? 0;
+    final coinCost = (remainingMinutes / 5).ceil() * 1000;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: NeumorphicDecoration.convex(borderRadius: 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Skip Cooldown',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Don\'t want to wait? Skip now and start your next mission immediately!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: NeumorphicButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.gameService.skipCooldownWithAd();
+                      },
+                      child:
+                          Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.play_circle_fill,
+                                    color: Colors.black,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  const Text(
+                                    'Watch Ad',
+                                    style: TextStyle(
+                                      color: Colors.black,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  Text(
+                                    'FREE',
+                                    style: TextStyle(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.5,
+                                      ),
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                ],
+                              )
+                              .animate(
+                                onPlay: (controller) => controller.repeat(),
+                              )
+                              .shimmer(
+                                duration: 1200.ms,
+                                color: Colors.white70,
+                              ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: NeumorphicButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        widget.gameService.skipCooldownWithCoins(coinCost);
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.monetization_on,
+                            color: Colors.black,
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Use Coins',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                          Text(
+                            '$coinCost AC',
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text(
+                  'NOT NOW',
+                  style: TextStyle(color: Colors.white38),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showSettingsDialog() {
@@ -222,11 +430,25 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
               ),
               _buildSettingTile(
                 icon: Icons.vibration,
-                title: 'Haptic Feedback',
-                trailing: Switch(
-                  value: true,
-                  onChanged: (v) {},
-                  activeThumbColor: AppTheme.primary,
+                title: 'Haptic Mode',
+                trailing: TextButton(
+                  onPressed: () {
+                    final current = _currentUser?.hapticSetting ?? 'eco';
+                    final next = current == 'strong'
+                        ? 'eco'
+                        : current == 'eco'
+                        ? 'off'
+                        : 'strong';
+                    widget.gameService.updateUserHaptic(next);
+                    setState(() {});
+                  },
+                  child: Text(
+                    (_currentUser?.hapticSetting ?? 'eco').toUpperCase(),
+                    style: const TextStyle(
+                      color: AppTheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
               _buildSettingTile(
@@ -238,7 +460,22 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                   activeThumbColor: AppTheme.primary,
                 ),
               ),
+              _buildSettingTile(
+                icon: Icons.notification_important,
+                title: 'Test Premium Notification',
+                trailing: const Icon(
+                  Icons.play_circle_fill,
+                  color: AppTheme.primary,
+                ),
+                onTap: () async {
+                  await context.read<NotificationService>().triggerNotification(
+                    title: 'TapMine Premium',
+                    body: 'Custom sound and vibration triggered! ⚡',
+                  );
+                },
+              ),
               const SizedBox(height: 16),
+
               _buildSettingTile(
                 icon: Icons.help_outline,
                 title: 'Help & FAQ',
@@ -316,119 +553,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _showSkipCooldownDialog() {
-    final adService = AdService();
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: NeumorphicDecoration.convex(borderRadius: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.timer_off, color: AppTheme.primary, size: 48),
-              const SizedBox(height: 16),
-              const Text(
-                'Skip Cooldown',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Time remaining: ${_formatDuration(_remainingCooldown)}',
-                style: const TextStyle(color: Colors.white54),
-              ),
-              const SizedBox(height: 24),
-
-              // Watch ad option
-              NeumorphicButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  final result = await adService.showRewardedAd();
-                  if (result.isSuccess && mounted) {
-                    widget.gameService.skipCooldownWithAd();
-                    if (!mounted) return;
-                    setState(() {
-                      _remainingCooldown = Duration.zero;
-                    });
-                    AppSnackBar.success(context, 'Cooldown skipped!');
-                  }
-                },
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.play_circle_outline, color: Colors.black),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'WATCH AD (FREE)',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Pay with coins option
-              GestureDetector(
-                onTap: () {
-                  if ((_currentUser?.appCoins ?? 0) >= 50) {
-                    Navigator.pop(context);
-                    widget.gameService.skipCooldownWithCoins(50);
-                    setState(() {
-                      _remainingCooldown = Duration.zero;
-                    });
-                    AppSnackBar.success(context, 'Cooldown skipped! -50 AC');
-                  } else {
-                    AppSnackBar.error(context, 'Not enough coins');
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.surfaceDark,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.toll, color: AppTheme.primary, size: 20),
-                      const SizedBox(width: 8),
-                      const Text(
-                        '50 AC',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'WAIT',
-                  style: TextStyle(color: Colors.white38),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     // Clear snackbars when leaving the screen
@@ -450,53 +574,71 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: CyberBackground(
-        child: SafeArea(
-          child: Stack(
-            children: [
-              // Main content
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenHeight = constraints.maxHeight;
-                  final isSmallScreen = screenHeight < 700;
-                  final buttonScale = isSmallScreen
-                      ? (screenHeight / 750).clamp(0.7, 1.0)
-                      : 1.0;
+      body: SafeArea(
+        child: Stack(
+          children: [
+            // Main content
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final screenHeight = constraints.maxHeight;
+                final isSmallScreen = screenHeight < 700;
+                final buttonScale = isSmallScreen
+                    ? (screenHeight / 750).clamp(0.7, 1.0)
+                    : 1.0;
 
-                  return Column(
-                    children: [
-                      _buildTopBar(),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 8,
-                        ),
-                        child: EnergyBar(
-                          current: currentEnergy,
-                          max: _currentUser?.maxEnergy ?? 100,
-                        ),
+                return Column(
+                  children: [
+                    _buildTopBar(),
+                    _buildPayoutTicker(),
+                    _buildWithdrawalGoalPrompt(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 8,
                       ),
-                      if (isInCooldown) _buildCooldownBanner(),
-                      if (activeMission != null && !isInCooldown)
-                        _buildActiveMissionCard(activeMission),
-                      const Spacer(),
-                      Transform.scale(
-                        scale: buttonScale,
-                        child: _buildTapArea(isInCooldown),
+                      child: EnergyBar(
+                        current: currentEnergy,
+                        max: _currentUser?.maxEnergy ?? 100,
                       ),
-                      if (!isInCooldown && !isSmallScreen)
-                        const NativeAdWidget(),
-                      const Spacer(),
-                      _buildBottomNav(),
-                    ],
-                  );
-                },
-              ),
+                    ),
+                    if (widget.gameService.isPenaltyActive)
+                      _buildPenaltyBanner(),
+                    if (isInCooldown && !widget.gameService.isPenaltyActive)
+                      _buildCooldownBanner(),
+                    if (activeMission != null &&
+                        !isInCooldown &&
+                        !widget.gameService.isPenaltyActive)
+                      _buildActiveMissionCard(activeMission)
+                    else if (activeMission == null &&
+                        !isInCooldown &&
+                        !widget.gameService.isPenaltyActive)
+                      _buildNoMissionCard(),
+                    const Spacer(),
+                    _buildBoostRow(),
+                    const SizedBox(height: 12),
+                    Transform.scale(
+                      scale: buttonScale,
+                      child: _buildTapArea(
+                        isInCooldown || widget.gameService.isPenaltyActive,
+                      ),
+                    ),
+                    if (!isInCooldown &&
+                        !isSmallScreen &&
+                        !widget.gameService.isPenaltyActive)
+                      const NativeAdWidget(),
+                    const Spacer(),
+                    _buildBottomNav(),
+                  ],
+                );
+              },
+            ),
 
-              // Floating tap particles
-              ..._particles.map((p) => _buildTapParticle(p)),
-            ],
-          ),
+            // Penalty Overlay
+            if (widget.gameService.isPenaltyActive) _buildPenaltyOverlay(),
+
+            // Floating tap particles
+            ..._particles.map((p) => _buildTapParticle(p)),
+          ],
         ),
       ),
     );
@@ -512,66 +654,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           NeumorphicContainer(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             borderRadius: 16,
-            child: Row(
-              children: [
-                AnimatedBuilder(
-                  animation: _coinPulseController,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: 1.0 + _coinPulseController.value * 0.1,
-                      child: child,
-                    );
-                  },
-                  child: Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [AppTheme.primary, AppTheme.primaryDark],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.5),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: const Center(
-                      child: Text(
-                        '₹',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _formatCoins(_displayCoins),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    Text(
-                      '≈ ₹${(_displayCoins / 1000).toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: AppTheme.primary.withValues(alpha: 0.8),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+            child: SharedCoinDisplay(
+              amount: _displayCoins,
+              iconSize: 32,
+              fontSize: 20,
             ),
           ),
 
@@ -585,14 +671,228 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  String _formatCoins(int coins) {
-    if (coins >= 1000000) {
-      return '${(coins / 1000000).toStringAsFixed(1)}M';
+  Widget _buildWithdrawalGoalPrompt() {
+    if (_currentUser == null) return const SizedBox.shrink();
+
+    final coins = _currentUser!.appCoins;
+    // Show prompt between ₹50 and ₹99 (50k - 99k AC)
+    if (coins < 50000 || coins >= 100000) return const SizedBox.shrink();
+
+    final remaining = 100000 - coins;
+    final progress = coins / 100000;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: NeumorphicDecoration.convex(
+        borderRadius: 20,
+        color: AppTheme.energyColor.withValues(alpha: 0.1),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.stars, color: AppTheme.energyColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'SO CLOSE TO WITHDRAWAL! 🚀',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    Text(
+                      'Just ₹${(remaining / 1000).toStringAsFixed(1)} more to unlock ₹100 UPI!',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: Colors.white10,
+              valueColor: const AlwaysStoppedAnimation(AppTheme.energyColor),
+              minHeight: 6,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPenaltyBanner() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.report_problem, color: AppTheme.error, size: 24),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Unusual Sync Activity',
+                  style: TextStyle(
+                    color: AppTheme.error,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Wait: ${widget.gameService.penaltyRemaining.inSeconds}s or Fast-Sync',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () => widget.gameService.bypassPenaltyWithAd(),
+            child: const Text(
+              'FAST SYNC',
+              style: TextStyle(
+                color: AppTheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBoostRow() {
+    if (widget.gameService.activeMission == null ||
+        widget.gameService.isPenaltyActive) {
+      return const SizedBox(height: 40);
     }
-    if (coins >= 1000) {
-      return '${(coins / 1000).toStringAsFixed(1)}K';
-    }
-    return coins.toString();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          // Skip Taps Boost
+          _buildBoostChip(
+            icon: Icons.fast_forward,
+            label: 'Skip 300',
+            onTap: () => widget.gameService.skipTapsByWatchingAd(),
+          ),
+          // Auto Boost
+          _buildBoostChip(
+            icon: Icons.bolt,
+            label: widget.gameService.isBoostActive
+                ? _formatDuration(widget.gameService.boostRemaining)
+                : 'Auto 2m',
+            color: widget.gameService.isBoostActive
+                ? AppTheme.energyColor
+                : AppTheme.primary,
+            onTap: () => widget.gameService.activateBoostByWatchingAd(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBoostChip({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? color,
+  }) {
+    final activeColor = color ?? AppTheme.primary;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: activeColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: activeColor.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: activeColor, size: 16),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: activeColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPenaltyOverlay() {
+    return Container(
+      color: Colors.black87,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.lock_clock, color: AppTheme.error, size: 64),
+            const SizedBox(height: 24),
+            const Text(
+              'SYNCING DETECTED',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'System lock: ${widget.gameService.penaltyRemaining.inSeconds}s',
+              style: const TextStyle(color: Colors.white70),
+            ),
+            const SizedBox(height: 48),
+            NeumorphicButton(
+              onPressed: () => widget.gameService.bypassPenaltyWithAd(),
+              child: const Text(
+                'FAST SYNC WITH AD',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () {}, // Do nothing, user must wait or watch ad
+              child: const Text(
+                'Please wait for system sync...',
+                style: TextStyle(color: Colors.white24),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildCooldownBanner() {
@@ -682,12 +982,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     color: AppTheme.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Text(
-                    '+${mission.acReward} AC',
-                    style: const TextStyle(
-                      color: AppTheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Image.asset('assets/AppCoin.png', width: 14, height: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        '+${mission.acReward} AC',
+                        style: const TextStyle(
+                          color: AppTheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -698,6 +1005,77 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  Widget _buildNoMissionCard() {
+    return GestureDetector(
+          onTap: widget.onNavigateToMissions,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: NeumorphicCard(
+              color: AppTheme.primary.withValues(alpha: 0.05),
+              child: Row(
+                children: [
+                  Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppTheme.primary.withValues(alpha: 0.1),
+                        ),
+                        child: const Icon(
+                          Icons.flag_outlined,
+                          color: AppTheme.primary,
+                          size: 24,
+                        ),
+                      )
+                      .animate(onPlay: (controller) => controller.repeat())
+                      .shimmer(duration: 1500.ms, color: Colors.white30)
+                      .scale(
+                        begin: const Offset(0.9, 0.9),
+                        end: const Offset(1.1, 1.1),
+                        duration: 1000.ms,
+                        curve: Curves.easeInOut,
+                      ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'NO ACTIVE MISSION',
+                          style: TextStyle(
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        Text(
+                          'Tap here to select a mission and start earning!',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.6),
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right,
+                    color: AppTheme.primary,
+                    size: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        )
+        .animate(onPlay: (controller) => controller.repeat(reverse: true))
+        .scale(
+          begin: const Offset(0.98, 0.98),
+          end: const Offset(1.0, 1.0),
+          duration: 1000.ms,
+        );
   }
 
   Widget _buildTapArea(bool isInCooldown) {
@@ -745,12 +1123,70 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         const SizedBox(height: 20),
 
         // Main tap button
-        TapButton(
-          onTap: _handleTap,
-          isEnabled: !isInCooldown && widget.gameService.activeMission != null,
-          isAutoClickerActive: widget.gameService.isAutoClickerRunning,
-          currentEnergy: _currentUser?.getCurrentEnergy() ?? 100,
-          maxEnergy: _currentUser?.maxEnergy ?? 100,
+        Stack(
+          alignment: Alignment.topCenter,
+          clipBehavior: Clip.none,
+          children: [
+            TapButton(
+              onTap: _handleTap,
+              isEnabled:
+                  !isInCooldown && widget.gameService.activeMission != null,
+              isAutoClickerActive: widget.gameService.isAutoClickerRunning,
+              currentEnergy: _currentUser?.getCurrentEnergy() ?? 100,
+              maxEnergy: _currentUser?.maxEnergy ?? 100,
+            ),
+            if (widget.gameService.activeMission == null && !isInCooldown)
+              Positioned(
+                top: -10,
+                child:
+                    Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppTheme.error,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.error.withValues(alpha: 0.5),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.warning_rounded,
+                                color: Colors.white,
+                                size: 14,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'MISSION REQUIRED',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        .animate(
+                          onPlay: (controller) =>
+                              controller.repeat(reverse: true),
+                        )
+                        .scale(
+                          begin: const Offset(0.9, 0.9),
+                          end: const Offset(1.1, 1.1),
+                          duration: 800.ms,
+                        ),
+              ),
+          ],
         ),
 
         const SizedBox(height: 20),
@@ -1096,7 +1532,7 @@ class _MissionCompleteDialogState extends State<_MissionCompleteDialog>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.toll, color: AppTheme.primary),
+                      Image.asset('assets/AppCoin.png', width: 24, height: 24),
                       const SizedBox(width: 8),
                       Text(
                         '+${widget.reward} AC',

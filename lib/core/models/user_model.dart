@@ -35,9 +35,9 @@ class UserModel {
   final DateTime? autoClickerRentalExpiry;
   final String autoClickerTier; // 'free', 'bronze', 'silver', 'gold'
 
-  // Cooldown state
   final DateTime? missionCooldownEnd;
   final DateTime? adCooldownEnd;
+  final String hapticSetting; // 'strong', 'eco', 'off'
 
   UserModel({
     required this.uid,
@@ -68,6 +68,7 @@ class UserModel {
     this.autoClickerTier = 'free',
     this.missionCooldownEnd,
     this.adCooldownEnd,
+    this.hapticSetting = 'eco',
   });
 
   /// Create new user with defaults
@@ -120,6 +121,7 @@ class UserModel {
       referredBy: data['referredBy'],
       referralCount: data['referralCount'] ?? 0,
       lastWithdrawalDate: (data['lastWithdrawalDate'] as Timestamp?)?.toDate(),
+      hapticSetting: data['hapticSetting'] ?? 'eco',
     );
   }
 
@@ -163,6 +165,7 @@ class UserModel {
       'lastWithdrawalDate': lastWithdrawalDate != null
           ? Timestamp.fromDate(lastWithdrawalDate!)
           : null,
+      'hapticSetting': hapticSetting,
     };
   }
 
@@ -193,6 +196,7 @@ class UserModel {
     String? referredBy,
     int? referralCount,
     DateTime? lastWithdrawalDate,
+    String? hapticSetting,
   }) {
     return UserModel(
       uid: uid,
@@ -224,6 +228,7 @@ class UserModel {
       referredBy: referredBy ?? this.referredBy,
       referralCount: referralCount ?? this.referralCount,
       lastWithdrawalDate: lastWithdrawalDate ?? this.lastWithdrawalDate,
+      hapticSetting: hapticSetting ?? this.hapticSetting,
     );
   }
 

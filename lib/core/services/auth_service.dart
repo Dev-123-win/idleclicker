@@ -33,6 +33,13 @@ class AuthService {
         return AuthResult.failure(passwordValidation);
       }
 
+      // Strict Gmail Enforcement
+      if (!email.trim().toLowerCase().endsWith('@gmail.com')) {
+        return AuthResult.failure(
+          'Registration is restricted to @gmail.com accounts only.',
+        );
+      }
+
       // Create user
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim().toLowerCase(),
@@ -203,7 +210,9 @@ class AuthService {
 
   // Validation helpers
   bool _isValidEmail(String email) {
-    return RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email.trim());
+    return RegExp(
+      r'^[\w-\.]+@gmail\.com$',
+    ).hasMatch(email.trim().toLowerCase());
   }
 
   String? _validatePassword(String password) {

@@ -34,29 +34,26 @@ service cloud.firestore {
       return newTaps >= oldTaps && (newTaps - oldTaps) <= 500;
     }
     
-    // Users collection - optimized for free tier
+    // Users collection - refined for Worker-authoritative model
     match /users/{userId} {
-      // Allow read only owner
       allow read: if isAuthenticated() && isOwner(userId);
       
-      // Allow create only for new users (signup)
       allow create: if isAuthenticated() && isOwner(userId) && 
-        request.resource.data.keys().hasAll(['email', 'createdAt']) &&
+        request.resource.data.email.matches('.*@gmail\\.com$') &&
         request.resource.data.appCoins == 0 &&
         request.resource.data.totalTaps == 0;
       
-      // Allow update with strict validation - CLIENT cannot update balance/stats
       allow update: if isAuthenticated() && isOwner(userId) &&
-        // Critical fields must NOT change (ensure they remain same if sent, or rely on them not being sent)
-        // Checks that the new value equals the old value for critical fields
+        // BLOCK client from touching these - only the Worker (Service Account) can change them
         request.resource.data.appCoins == resource.data.appCoins &&
         request.resource.data.totalTaps == resource.data.totalTaps &&
-        request.resource.data.energy == resource.data.energy &&
         request.resource.data.missionsCompleted == resource.data.missionsCompleted &&
-        // Prevent modifying system fields
+        // ALLOW client to update these (needed for app functionality)
+        (request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['upiId', 'lastSyncAt', 'energy', 'lastEnergyUpdate', 'autoClickerActive', 'hapticSetting'])) &&
+        // PROTECT system fields
         request.resource.data.uid == resource.data.uid &&
-        request.resource.data.email == resource.data.email &&
-        request.resource.data.createdAt == resource.data.createdAt;
+        request.resource.data.email == resource.data.email;
     }
     
     // Withdrawals collection

@@ -97,48 +97,46 @@ class _MissionScreenState extends State<MissionScreen>
 
     return Scaffold(
       backgroundColor: AppTheme.background,
-      body: CyberBackground(
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              _buildHeader(),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header
+            _buildHeader(),
 
-              // Stats banner
-              _buildStatsBanner(),
+            // Stats banner
+            _buildStatsBanner(),
 
-              // Filter tabs
-              _buildFilterTabs(),
+            // Filter tabs
+            _buildFilterTabs(),
 
-              // Mission list
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(20),
-                  physics: const BouncingScrollPhysics(),
-                  itemCount: missions.length,
-                  itemBuilder: (context, index) {
-                    return AnimatedBuilder(
-                      animation: _listController,
-                      builder: (context, child) {
-                        final delay = index * 0.1;
-                        final animValue = Curves.easeOutCubic.transform(
-                          ((_listController.value - delay) / (1 - delay)).clamp(
-                            0.0,
-                            1.0,
-                          ),
-                        );
-                        return Transform.translate(
-                          offset: Offset(0, 30 * (1 - animValue)),
-                          child: Opacity(opacity: animValue, child: child),
-                        );
-                      },
-                      child: _buildMissionCard(missions[index]),
-                    );
-                  },
-                ),
+            // Mission list
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(20),
+                physics: const BouncingScrollPhysics(),
+                itemCount: missions.length,
+                itemBuilder: (context, index) {
+                  return AnimatedBuilder(
+                    animation: _listController,
+                    builder: (context, child) {
+                      final delay = index * 0.1;
+                      final animValue = Curves.easeOutCubic.transform(
+                        ((_listController.value - delay) / (1 - delay)).clamp(
+                          0.0,
+                          1.0,
+                        ),
+                      );
+                      return Transform.translate(
+                        offset: Offset(0, 30 * (1 - animValue)),
+                        child: Opacity(opacity: animValue, child: child),
+                      );
+                    },
+                    child: _buildMissionCard(missions[index]),
+                  );
+                },
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -182,11 +180,11 @@ class _MissionScreenState extends State<MissionScreen>
               color: AppTheme.success,
             ),
             Container(width: 1, height: 40, color: Colors.white12),
-            _buildStatItem(
-              icon: Icons.toll,
-              value: '${widget.user.appCoins}',
-              label: 'AppCoins',
-              color: AppTheme.primary,
+            SharedCoinDisplay(
+              amount: widget.user.appCoins,
+              iconSize: 20,
+              fontSize: 16,
+              showLabel: true,
             ),
             Container(width: 1, height: 40, color: Colors.white12),
             _buildStatItem(
@@ -202,14 +200,18 @@ class _MissionScreenState extends State<MissionScreen>
   }
 
   Widget _buildStatItem({
-    required IconData icon,
+    IconData? icon,
+    Widget? iconWidget,
     required String value,
     required String label,
     required Color color,
   }) {
     return Column(
       children: [
-        Icon(icon, color: color, size: 20),
+        if (iconWidget != null)
+          iconWidget
+        else
+          Icon(icon!, color: color, size: 20),
         const SizedBox(height: 4),
         Text(
           value,
@@ -336,7 +338,7 @@ class _MissionScreenState extends State<MissionScreen>
                 // Reward
                 Row(
                   children: [
-                    Icon(Icons.toll, color: AppTheme.primary, size: 18),
+                    Image.asset('assets/AppCoin.png', width: 18, height: 18),
                     const SizedBox(width: 4),
                     Text(
                       '+${mission.acReward}',

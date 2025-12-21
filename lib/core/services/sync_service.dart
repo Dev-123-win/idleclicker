@@ -102,6 +102,9 @@ class SyncService {
         'appCoins': newTotalCoins,
         'energy': user.getCurrentEnergy(),
         'missionsCompleted': user.missionsCompleted,
+        'upiId': user.upiId,
+        'hapticSetting': user.hapticSetting,
+        'autoClickerActive': user.autoClickerActive,
         'clientTimestamp': timestamp,
         'checksum': _generateChecksum(
           user.uid,
