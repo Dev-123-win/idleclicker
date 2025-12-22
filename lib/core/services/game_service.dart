@@ -15,7 +15,7 @@ import 'dart:convert';
 
 /// Game service - handles all game logic, Firestore free tier optimized
 /// Uses local-first approach with periodic sync to minimize reads/writes
-class GameService {
+class GameService with ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   UserModel? _currentUser;
@@ -37,7 +37,6 @@ class GameService {
   DateTime? _penaltyEndTime;
 
   // Callbacks
-  Function(UserModel)? onUserUpdate;
   Function(int)? onTapRegistered;
   Function(int)? onMissionComplete;
   Function(String)? onError;
@@ -174,21 +173,26 @@ class GameService {
         _remoteMissions = snapshot.docs
             .map((doc) => MissionModel.fromFirestore(doc.data()))
             .toList();
-        // Sort by tier/difficulty if needed
+
+        // Restore active mission if ID was cached
+        final prefs = await SharedPreferences.getInstance();
+        final savedId = prefs.getString('activeMissionId');
+        if (savedId != null && _activeMission == null) {
+          try {
+            _activeMission = missions.firstWhere((m) => m.id == savedId);
+          } catch (_) {}
+        }
+
         notifyListenersOrUpdateUI();
       }
     } catch (e) {
       debugPrint('Failed to fetch missions: $e');
-      // Fallback to local missions is automatic via getter
     }
   }
 
   // Helper to notify (if we add ChangeNotifier later, for now just a placeholder/noop)
   void notifyListenersOrUpdateUI() {
-    // implementing a basic callback if needed, or just let the next UI build pick it up
-    // Since MissionScreen doesn't listen to GameService changes for the *list* specifically,
-    // we might need to reload the screen or use a FutureBuilder.
-    // For now, we'll just cache it.
+    notifyListeners();
   }
 
   // ... (rest of the file)
@@ -240,7 +244,7 @@ class GameService {
             appCoins: _currentUser!.appCoins + bonus,
           );
           await _syncToFirestore(); // Sync the result immediately to ensure consistency
-          onUserUpdate?.call(_currentUser!);
+          notifyListeners();
           return true;
         } else {
           onError?.call(data['error'] ?? 'Invalid referral code');
@@ -273,11 +277,26 @@ class GameService {
         appCoins: (_currentUser?.appCoins ?? 0) + pendingCoins,
       );
     }
+
+    // Load mission progress
+    final prefs = await SharedPreferences.getInstance();
+    final missionId = prefs.getString('activeMissionId');
+    if (missionId != null) {
+      // Find mission by ID (this assumes missions are already fetched or we'll set it when they are)
+      _missionProgress = prefs.getInt('missionProgress') ?? 0;
+    }
   }
 
   /// Save state to local cache
   Future<void> _saveCachedState() async {
-    // No-op - SyncService handles this now
+    final prefs = await SharedPreferences.getInstance();
+    if (_activeMission != null) {
+      await prefs.setString('activeMissionId', _activeMission!.id);
+      await prefs.setInt('missionProgress', _missionProgress);
+    } else {
+      await prefs.remove('activeMissionId');
+      await prefs.remove('missionProgress');
+    }
   }
 
   /// Register a tap
@@ -285,19 +304,27 @@ class GameService {
     if (_currentUser == null) return;
     if (isPenaltyActive) return;
     if (AdService().isAdShowing) return; // DON'T register taps during ads
-    if (_currentUser!.isInMissionCooldown) return;
-    if (_activeMission == null) return;
+    if (_currentUser!.isInMissionCooldown) {
+      if (isAuto) stopAutoClicker();
+      return;
+    }
+    if (_activeMission == null) {
+      if (isAuto) stopAutoClicker();
+      return;
+    }
 
     // Check energy
     final currentEnergy = _currentUser!.getCurrentEnergy();
     if (currentEnergy <= 0) {
-      if (!isAutoClickerRunning) {
+      if (isAutoClickerRunning) {
+        stopAutoClicker();
+        onError?.call('Auto-clicker paused: Out of energy!');
+      } else {
         HapticFeedback.mediumImpact();
         onError?.call(
           'You\'re out of energy! Take a short break or refill with AppCoins.',
         );
       }
-      stopAutoClicker();
       return;
     }
 
@@ -363,6 +390,8 @@ class GameService {
     // Enable wakelock when mission is active to keep screen on
     WakelockPlus.enable();
 
+    _saveCachedState();
+
     return true;
   }
 
@@ -418,7 +447,8 @@ class GameService {
     _syncToFirestore();
 
     onMissionComplete?.call(reward);
-    onUserUpdate?.call(_currentUser!);
+    notifyListeners();
+    _saveCachedState();
   }
 
   /// Get cooldown multiplier based on time of day (IST)
@@ -449,7 +479,7 @@ class GameService {
         energy: newEnergy,
         lastEnergyUpdate: DateTime.now(),
       );
-      onUserUpdate?.call(_currentUser!);
+      notifyListeners();
     }
   }
 
@@ -483,7 +513,7 @@ class GameService {
     if (_currentUser == null) return;
     _currentUser = _currentUser!.copyWith(hapticSetting: setting);
     await _syncToFirestore();
-    onUserUpdate?.call(_currentUser!);
+    notifyListeners();
   }
 
   /// Toggle auto-clicker
@@ -535,7 +565,7 @@ class GameService {
     });
 
     _currentUser = _currentUser!.copyWith(autoClickerActive: true);
-    onUserUpdate?.call(_currentUser!);
+    notifyListeners();
   }
 
   /// Stop auto-clicker
@@ -547,7 +577,7 @@ class GameService {
 
     if (_currentUser != null) {
       _currentUser = _currentUser!.copyWith(autoClickerActive: false);
-      onUserUpdate?.call(_currentUser!);
+      notifyListeners();
     }
     onAutoClickerUpdate?.call();
     _saveAutoClickerLocalState();
@@ -572,7 +602,7 @@ class GameService {
     );
 
     await _syncToFirestore();
-    onUserUpdate?.call(_currentUser!);
+    notifyListeners();
 
     return true;
   }
@@ -598,7 +628,7 @@ class GameService {
       lastEnergyUpdate: DateTime.now(),
     );
     await _syncToFirestore();
-    onUserUpdate?.call(_currentUser!);
+    notifyListeners();
 
     return true;
   }
@@ -656,7 +686,7 @@ class GameService {
 
     _currentUser = _currentUser!.copyWith(missionCooldownEnd: null);
     _syncToFirestore();
-    onUserUpdate?.call(_currentUser!);
+    notifyListeners();
   }
 
   /// Skip cooldown by paying coins
@@ -670,7 +700,7 @@ class GameService {
     );
 
     _syncToFirestore();
-    onUserUpdate?.call(_currentUser!);
+    notifyListeners();
   }
 
   /// Update user's UPI ID
@@ -679,7 +709,7 @@ class GameService {
 
     _currentUser = _currentUser!.copyWith(upiId: upiId);
     await _syncToFirestore();
-    onUserUpdate?.call(_currentUser!);
+    notifyListeners();
   }
 
   /// Request withdrawal via Cloudflare Worker
@@ -723,7 +753,7 @@ class GameService {
           _currentUser = _currentUser!.copyWith(
             appCoins: _currentUser!.appCoins - amount,
           );
-          onUserUpdate?.call(_currentUser!);
+          notifyListeners();
 
           // Sync to ensure state matches (though worker just updated it, so maybe just fetch?)
           // Actually, since worker updated it, our local state is now stale compared to server if we rely on next sync.
@@ -798,7 +828,7 @@ class GameService {
     }
   }
 
-  /// Dispose timers
+  @override
   void dispose() {
     _energyRegenTimer?.cancel();
     _syncTimer?.cancel();
@@ -806,5 +836,6 @@ class GameService {
     WakelockPlus.disable(); // Ensure wakelock is released
     _saveCachedState();
     _syncToFirestore();
+    super.dispose();
   }
 }

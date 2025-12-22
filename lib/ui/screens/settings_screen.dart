@@ -271,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     margin: const EdgeInsets.only(bottom: 8),
                     decoration: BoxDecoration(
                       color: _selectedLanguage == lang
-                          ? AppTheme.primary.withOpacity(0.2)
+                          ? AppTheme.primary.withValues(alpha: 0.2)
                           : AppTheme.surfaceDark,
                       borderRadius: BorderRadius.circular(12),
                       border: _selectedLanguage == lang

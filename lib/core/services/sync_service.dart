@@ -108,8 +108,8 @@ class SyncService {
       }
 
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final newTotalTaps = user.totalTaps;
-      final newTotalCoins = user.appCoins;
+      final newTotalTaps = user.totalTaps + _pendingTaps;
+      final newTotalCoins = user.appCoins + _pendingCoins;
 
       final syncData = {
         'userId': user.uid,

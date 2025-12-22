@@ -1,59 +1,52 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_theme.dart';
 import '../../core/services/game_service.dart';
 
-/// Neumorphic Container Widget
+/// Wraps standard Material widgets to replace Neumorphic widgets
+/// while keeping the same API surface for the rest of the app.
+
 class NeumorphicContainer extends StatelessWidget {
   final Widget child;
   final double? width;
   final double? height;
   final double borderRadius;
   final EdgeInsets padding;
+  final Color? color;
+  // Ignored parameters kept for API compatibility:
   final bool isConvex;
   final bool isPressed;
-  final Color? color;
 
   const NeumorphicContainer({
     super.key,
     required this.child,
     this.width,
     this.height,
-    this.borderRadius = 20,
+    this.borderRadius = 16,
     this.padding = const EdgeInsets.all(16),
+    this.color,
     this.isConvex = false,
     this.isPressed = false,
-    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: Container(
-        width: width,
-        height: height,
-        padding: padding,
-        decoration: isConvex
-            ? NeumorphicDecoration.convex(borderRadius: borderRadius)
-            : isPressed
-            ? NeumorphicDecoration.flat(
-                borderRadius: borderRadius,
-                isPressed: true,
-              )
-            : NeumorphicDecoration.flat(
-                color: color ?? AppTheme.surface,
-                borderRadius: borderRadius,
-              ),
-        child: child,
+    return Container(
+      width: width,
+      height: height,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: color ?? AppTheme.surfaceVariant,
+        borderRadius: BorderRadius.circular(borderRadius),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
+      child: child,
     );
   }
 }
 
-/// Neumorphic Button with press animation
-class NeumorphicButton extends StatefulWidget {
+class NeumorphicButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Widget child;
   final bool isLoading;
@@ -66,102 +59,36 @@ class NeumorphicButton extends StatefulWidget {
     required this.onPressed,
     required this.child,
     this.isLoading = false,
-    this.borderRadius = 16,
-    this.padding = const EdgeInsets.symmetric(vertical: 18),
+    this.borderRadius = 12,
+    this.padding = const EdgeInsets.symmetric(vertical: 16),
     this.backgroundColor,
   });
 
   @override
-  State<NeumorphicButton> createState() => _NeumorphicButtonState();
-}
-
-class _NeumorphicButtonState extends State<NeumorphicButton>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  bool _isPressed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      duration: const Duration(milliseconds: 100),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.95,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _handleTapDown(TapDownDetails details) {
-    if (widget.onPressed == null) return;
-    setState(() => _isPressed = true);
-    _controller.forward();
-    HapticFeedback.lightImpact();
-  }
-
-  void _handleTapUp(TapUpDetails details) {
-    if (widget.onPressed == null) return;
-    setState(() => _isPressed = false);
-    _controller.reverse();
-    widget.onPressed?.call();
-  }
-
-  void _handleTapCancel() {
-    setState(() => _isPressed = false);
-    _controller.reverse();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: GestureDetector(
-        onTapDown: _handleTapDown,
-        onTapUp: _handleTapUp,
-        onTapCancel: _handleTapCancel,
-        child: AnimatedBuilder(
-          animation: _scaleAnimation,
-          builder: (context, child) {
-            return Transform.scale(scale: _scaleAnimation.value, child: child);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: widget.padding,
-            decoration: _isPressed
-                ? NeumorphicDecoration.flat(
-                    borderRadius: widget.borderRadius,
-                    isPressed: true,
-                  )
-                : NeumorphicDecoration.convex(
-                    borderRadius: widget.borderRadius,
-                  ),
-            child: Center(
-              child: widget.isLoading
-                  ? const SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : widget.child,
-            ),
-          ),
+    return FilledButton(
+      onPressed: isLoading ? null : onPressed,
+      style: FilledButton.styleFrom(
+        backgroundColor: backgroundColor ?? AppTheme.primary,
+        padding: padding,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
         ),
       ),
+      child: isLoading
+          ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.black,
+              ),
+            )
+          : child,
     );
   }
 }
 
-/// Neumorphic Text Field
 class NeumorphicTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
@@ -186,32 +113,21 @@ class NeumorphicTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: NeumorphicDecoration.concave(),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        style: const TextStyle(color: Colors.white, fontSize: 16),
-        validator: validator,
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          hintText: hintText,
-          prefixIcon: Icon(prefixIcon, color: Colors.white38, size: 22),
-          suffixIcon: suffixIcon,
-          filled: false,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 18,
-          ),
-        ),
+    return TextFormField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      validator: validator,
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: Icon(prefixIcon),
+        suffixIcon: suffixIcon,
       ),
     );
   }
 }
 
-/// Neumorphic Card
 class NeumorphicCard extends StatelessWidget {
   final Widget child;
   final EdgeInsets padding;
@@ -225,34 +141,30 @@ class NeumorphicCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.margin = EdgeInsets.zero,
-    this.borderRadius = 20,
+    this.borderRadius = 16,
     this.onTap,
     this.color,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: margin,
-      child: RepaintBoundary(
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: padding,
-            decoration: NeumorphicDecoration.flat(
-              borderRadius: borderRadius,
-              color: color ?? AppTheme.surface,
-            ),
-            child: child,
-          ),
-        ),
+    return Card(
+      margin: margin,
+      color: color ?? AppTheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(borderRadius),
+        side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(padding: padding, child: child),
       ),
     );
   }
 }
 
-/// Neumorphic Icon Button
-class NeumorphicIconButton extends StatefulWidget {
+class NeumorphicIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;
   final double size;
@@ -267,47 +179,21 @@ class NeumorphicIconButton extends StatefulWidget {
   });
 
   @override
-  State<NeumorphicIconButton> createState() => _NeumorphicIconButtonState();
-}
-
-class _NeumorphicIconButtonState extends State<NeumorphicIconButton> {
-  bool _isPressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return RepaintBoundary(
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _isPressed = true),
-        onTapUp: (_) {
-          setState(() => _isPressed = false);
-          widget.onPressed?.call();
-          HapticFeedback.lightImpact();
-        },
-        onTapCancel: () => setState(() => _isPressed = false),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 100),
-          width: widget.size,
-          height: widget.size,
-          decoration: _isPressed
-              ? NeumorphicDecoration.flat(
-                  borderRadius: widget.size / 2,
-                  isPressed: true,
-                )
-              : NeumorphicDecoration.convex(borderRadius: widget.size / 2),
-          child: Icon(
-            widget.icon,
-            color: widget.iconColor ?? Colors.white70,
-            size: widget.size * 0.5,
-          ),
-        ),
+    return IconButton.filled(
+      onPressed: onPressed,
+      icon: Icon(icon, size: size * 0.5, color: iconColor),
+      style: IconButton.styleFrom(
+        backgroundColor: AppTheme.surfaceVariant,
+        fixedSize: Size(size, size),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 }
 
-/// Neumorphic Progress Bar
 class NeumorphicProgressBar extends StatelessWidget {
-  final double value; // 0.0 to 1.0
+  final double value;
   final double height;
   final Color? progressColor;
   final Color? backgroundColor;
@@ -317,62 +203,34 @@ class NeumorphicProgressBar extends StatelessWidget {
   const NeumorphicProgressBar({
     super.key,
     required this.value,
-    this.height = 12,
+    this.height = 8,
     this.progressColor,
     this.backgroundColor,
-    this.borderRadius = 6,
+    this.borderRadius = 4,
     this.heroTag,
   });
 
   @override
   Widget build(BuildContext context) {
-    Widget progressBar = Container(
-      height: height,
-      decoration: NeumorphicDecoration.concave(borderRadius: borderRadius),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: FractionallySizedBox(
-          alignment: Alignment.centerLeft,
-          widthFactor: value.clamp(0.0, 1.0),
-          child: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  progressColor ?? AppTheme.primary,
-                  (progressColor ?? AppTheme.primary).withValues(alpha: 0.8),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(borderRadius),
-              boxShadow: [
-                BoxShadow(
-                  color: (progressColor ?? AppTheme.primary).withValues(
-                    alpha: 0.3,
-                  ),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-                BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, -1),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
+    Widget bar = LinearProgressIndicator(
+      value: value.clamp(0.0, 1.0),
+      minHeight: height,
+      backgroundColor: backgroundColor ?? AppTheme.surfaceVariant,
+      color: progressColor ?? AppTheme.primary,
+      borderRadius: BorderRadius.circular(borderRadius),
     );
 
     if (heroTag != null) {
-      return Hero(tag: heroTag!, child: progressBar);
+      return Hero(tag: heroTag!, child: bar);
     }
-    return progressBar;
+    return bar;
   }
 }
 
-/// Energy Progress Bar with glow
+// NeumorphicDecoration class removed; imported from app_theme.dart
+
+// ------ Existing Logic Components (Unchanged logic, updated visuals) ------
+
 class EnergyBar extends StatelessWidget {
   final int current;
   final int max;
@@ -382,7 +240,7 @@ class EnergyBar extends StatelessWidget {
     super.key,
     required this.current,
     required this.max,
-    this.height = 16,
+    this.height = 12,
   });
 
   Color _getEnergyColor() {
@@ -395,7 +253,7 @@ class EnergyBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percentage = current / max;
-    final isLow = percentage < 0.15; // Show refill below 15%
+    final isLow = percentage < 0.15;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,12 +268,12 @@ class EnergyBar extends StatelessWidget {
                   color: _getEnergyColor(),
                   size: 18,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 8),
                 const Text(
                   'Energy',
                   style: TextStyle(
                     color: Colors.white70,
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -428,13 +286,13 @@ class EnergyBar extends StatelessWidget {
                 '$current / $max',
                 style: TextStyle(
                   color: _getEnergyColor(),
-                  fontSize: 12,
+                  fontSize: 14,
                   fontWeight: FontWeight.bold,
                 ),
               ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
         NeumorphicProgressBar(
           value: current / max,
           height: height,
@@ -446,7 +304,6 @@ class EnergyBar extends StatelessWidget {
   }
 }
 
-/// Shared Coin Display with Hero animation for Data Continuity
 class SharedCoinDisplay extends StatelessWidget {
   final int amount;
   final double iconSize;
@@ -565,42 +422,19 @@ class RefillButton extends StatelessWidget {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            backgroundColor: AppTheme.background,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Text(
-              'Low Energy!',
-              style: TextStyle(color: Colors.white),
-            ),
-            content: const Text(
-              'Want to refill your energy to keep mining?',
-              style: TextStyle(color: Colors.white70),
-            ),
+            title: const Text('Low Energy!'),
+            content: const Text('Want to refill your energy to keep mining?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'NOT NOW',
-                  style: TextStyle(color: Colors.white38),
-                ),
+                child: const Text('NOT NOW'),
               ),
-              NeumorphicButton(
+              FilledButton(
                 onPressed: () {
                   Navigator.pop(context);
                   gameService.refillEnergyWithAC();
                 },
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
-                ),
-                child: const Text(
-                  'REFILL (2000 AC)',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                child: const Text('REFILL (2000 AC)'),
               ),
             ],
           ),
@@ -609,14 +443,14 @@ class RefillButton extends StatelessWidget {
       child:
           Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: 12,
+                  vertical: 6,
                 ),
                 decoration: BoxDecoration(
                   color: AppTheme.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppTheme.error.withValues(alpha: 0.3),
+                    color: AppTheme.error.withValues(alpha: 0.5),
                   ),
                 ),
                 child: const Row(
@@ -636,17 +470,12 @@ class RefillButton extends StatelessWidget {
                 ),
               )
               .animate(onPlay: (c) => c.repeat(reverse: true))
-              .shimmer(duration: 1200.ms, color: Colors.white54)
-              .scale(
-                begin: const Offset(0.95, 0.95),
-                end: const Offset(1.05, 1.05),
-                duration: 800.ms,
-              ),
+              .scale(begin: const Offset(1, 1), end: const Offset(1.1, 1.1)),
     );
   }
 }
 
-/// Premium SnackBar helper
+/// Helper for standard SnackBars
 class AppSnackBar {
   static void show(
     BuildContext context,
@@ -662,27 +491,24 @@ class AppSnackBar {
         content: Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, color: Colors.white, size: 20),
+              Icon(icon, color: Colors.black, size: 20),
               const SizedBox(width: 12),
             ],
             Expanded(
               child: Text(
                 message,
                 style: const TextStyle(
-                  letterSpacing: 0.5,
-                  fontWeight: FontWeight.w600,
+                  color: Colors.black, // Better contrast on light bg
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
           ],
         ),
-        backgroundColor: backgroundColor ?? AppTheme.surfaceLight,
-        duration: duration,
-        dismissDirection: DismissDirection.down,
+        backgroundColor: backgroundColor ?? AppTheme.primary,
         behavior: SnackBarBehavior.floating,
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: duration,
       ),
     );
   }
@@ -692,7 +518,7 @@ class AppSnackBar {
       context,
       message,
       backgroundColor: AppTheme.success,
-      icon: Icons.check_circle_outline,
+      icon: Icons.check_circle,
     );
   }
 

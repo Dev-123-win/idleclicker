@@ -5,10 +5,19 @@ import '../../ui/theme/app_theme.dart';
 
 /// Physics-based Splash Screen with unique "Gold Strike" animation
 /// Pure Flutter code - no external assets required
+///
+/// Now waits for [initializationFuture] to complete before calling [onComplete].
+/// If initialization finishes before the minimum animation duration, animation continues.
+/// If animation finishes before initialization, it loops until ready.
 class SplashScreen extends StatefulWidget {
   final VoidCallback onComplete;
+  final Future<void>? initializationFuture;
 
-  const SplashScreen({super.key, required this.onComplete});
+  const SplashScreen({
+    super.key,
+    required this.onComplete,
+    this.initializationFuture,
+  });
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -33,6 +42,9 @@ class _SplashScreenState extends State<SplashScreen>
   // Spring physics for bouncy logo
   late SpringSimulation _springSimulation;
   double _springValue = 0.0;
+
+  bool _initializationComplete = false;
+  bool _animationComplete = false;
 
   @override
   void initState() {
@@ -146,9 +158,30 @@ class _SplashScreenState extends State<SplashScreen>
       curve: Curves.linear,
     );
 
-    // Navigate after animation completes
+    // Start listening for initialization completion in parallel
+    _waitForInitialization();
+
+    // Wait for minimum animation time (2.5 seconds from start)
     await Future.delayed(const Duration(milliseconds: 2500));
-    widget.onComplete();
+    _animationComplete = true;
+
+    // Check if we can complete now
+    _checkAndComplete();
+  }
+
+  void _waitForInitialization() async {
+    if (widget.initializationFuture != null) {
+      await widget.initializationFuture;
+    }
+    _initializationComplete = true;
+    _checkAndComplete();
+  }
+
+  void _checkAndComplete() {
+    // Only complete when BOTH animation is done AND initialization is done
+    if (_animationComplete && _initializationComplete && mounted) {
+      widget.onComplete();
+    }
   }
 
   @override
@@ -314,23 +347,34 @@ class _SplashScreenState extends State<SplashScreen>
                   opacity: _textOpacity.value,
                   child: Column(
                     children: [
+                      // Show indeterminate progress if still initializing after animation completes
                       SizedBox(
                         width: 150,
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: _mainController.value,
-                            backgroundColor: AppTheme.surfaceDark,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppTheme.primary.withValues(alpha: 0.8),
-                            ),
-                            minHeight: 3,
-                          ),
+                          child: _animationComplete && !_initializationComplete
+                              ? LinearProgressIndicator(
+                                  backgroundColor: AppTheme.surfaceDark,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppTheme.primary.withValues(alpha: 0.8),
+                                  ),
+                                  minHeight: 3,
+                                )
+                              : LinearProgressIndicator(
+                                  value: _mainController.value,
+                                  backgroundColor: AppTheme.surfaceDark,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    AppTheme.primary.withValues(alpha: 0.8),
+                                  ),
+                                  minHeight: 3,
+                                ),
                         ),
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'LOADING...',
+                        _animationComplete && !_initializationComplete
+                            ? 'PREPARING...'
+                            : 'LOADING...',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.white38,
                           letterSpacing: 2,

@@ -1,264 +1,200 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Cyber-Industrial Neumorphic Theme for Tap-to-Earn App
+/// Modern Material 3 Theme for Tap-to-Earn App
 class AppTheme {
-  // Industrial Luxury Palette - Dark Neumorphism
-  static const Color background = Color(0xFF1E1E24);
-  static const Color surface = Color(0xFF252530);
-  static const Color surfaceLight = Color(0xFF2C2C38);
-  static const Color surfaceDark = Color(0xFF16161C);
+  // Brand Colors
   static const Color primary = Color(0xFFFFD700); // Gold
-  static const Color primaryDark = Color(0xFFB8860B); // Dark Gold
-  static const Color secondary = Color(0xFF4A5568); // Industrial Grey
-  static const Color accent = Color(0xFFE0E0E0); // Silver
-  static const Color energyColor = Color(0xFF00FFC2); // Energy Cyan
-  static const Color error = Color(0xFFFF6B6B);
-  static const Color success = Color(0xFF00C853);
-  static const Color warning = Color(0xFFFFAB00);
+  static const Color primaryDark = Color(0xFFC5A000); // Darker Gold
+  static const Color secondary = Color(0xFF4A5568); // Slate
+  static const Color background = Color(0xFF121212); // True Black/Dark for OLED
+  static const Color surface = Color(0xFF1E1E1E); // Standard Dark Surface
+  static const Color surfaceVariant = Color(0xFF2C2C2C);
 
-  // Neumorphic shadow colors
-  // Neumorphic shadow colors - Optimized for Dark Mode (#252530 surface)
-  static Color get neumorphicDark => Colors.black.withValues(alpha: 0.45);
+  // Semantic Colors
+  static const Color error = Color(0xFFCF6679);
+  static const Color success = Color(0xFF4CAF50);
+  static const Color warning = Color(0xFFFFA000);
+  static const Color energyColor = Color(0xFF00E5FF); // Cyan Accent
+
+  // Legacy/Compatibility Colors (Mapped to new scheme)
+  static const Color surfaceLight = Color(0xFF2C2C2C);
+  static const Color surfaceDark = Color(0xFF1E1E1E);
+  static const Color accent = Color(0xFF4A5568);
+
+  static Color get neumorphicDark => Colors.black.withValues(alpha: 0.3);
   static Color get neumorphicLight => Colors.white.withValues(alpha: 0.05);
-  static Color get shadowHigh => Colors.black.withValues(alpha: 0.6);
-  static Color get highlightHigh => Colors.white.withValues(alpha: 0.08);
+  static Color get shadowHigh => Colors.black.withValues(alpha: 0.5);
+  static Color get highlightHigh => Colors.white.withValues(alpha: 0.1);
 
   static ThemeData get darkTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
       scaffoldBackgroundColor: background,
+
+      // Material 3 Color Scheme
       colorScheme: const ColorScheme.dark(
         primary: primary,
+        onPrimary: Colors.black,
         secondary: secondary,
+        onSecondary: Colors.white,
         surface: surface,
+        surfaceContainerHighest: surfaceVariant,
+        onSurface: Colors.white,
         error: error,
+        onError: Colors.black,
       ),
-      textTheme: GoogleFonts.rajdhaniTextTheme(
-        ThemeData.dark().textTheme.copyWith(
-          displayLarge: const TextStyle(
-            fontSize: 48,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: 2,
+
+      // Typography
+      textTheme:
+          GoogleFonts.rajdhaniTextTheme(
+            ThemeData.dark().textTheme.apply(
+              bodyColor: Colors.white,
+              displayColor: Colors.white,
+            ),
+          ).copyWith(
+            headlineLarge: GoogleFonts.rajdhani(fontWeight: FontWeight.bold),
+            titleLarge: GoogleFonts.rajdhani(fontWeight: FontWeight.bold),
+            labelLarge: GoogleFonts.rajdhani(
+              fontWeight: FontWeight.bold,
+              letterSpacing: 1,
+            ),
           ),
-          displayMedium: const TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            letterSpacing: 1,
-          ),
-          displaySmall: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
-          headlineMedium: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
-          ),
-          bodyLarge: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-            color: Colors.white,
-          ),
-          bodyMedium: const TextStyle(fontSize: 14, color: Colors.white70),
-        ),
-      ),
+
+      // Component Themes
       cardTheme: CardThemeData(
         color: surface,
         elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: Colors.white.withValues(alpha: 0.05),
+            width: 1,
+          ),
+        ),
       ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
+
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.black,
-          minimumSize: const Size(double.infinity, 56),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
           elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           textStyle: GoogleFonts.rajdhani(
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
             letterSpacing: 1,
           ),
         ),
       ),
+
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Colors.white,
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.rajdhani(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: primary,
+          textStyle: GoogleFonts.rajdhani(fontWeight: FontWeight.bold),
+        ),
+      ),
+
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surfaceDark,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
-        ),
+        fillColor: surfaceVariant,
+        contentPadding: const EdgeInsets.all(16),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: primary, width: 2),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: primary),
         ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: error, width: 2),
-        ),
-        labelStyle: const TextStyle(color: Colors.white60),
-        hintStyle: const TextStyle(color: Colors.white38),
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4)),
       ),
+
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.white),
+        scrolledUnderElevation: 0,
         titleTextStyle: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.bold,
           color: Colors.white,
-          letterSpacing: 1,
         ),
       ),
+
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: surface,
         selectedItemColor: primary,
-        unselectedItemColor: Colors.white38,
+        unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
-        elevation: 0,
+        elevation: 0, // Flat look
       ),
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: surfaceLight,
-        contentTextStyle: GoogleFonts.rajdhani(
-          color: Colors.white,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 8,
+
+      dialogTheme: DialogThemeData(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
     );
   }
 }
 
-/// Neumorphic Decoration System
+// Deprecated class kept for temporary compatibility if needed,
+// but essentially defined to do nothing or standard box decoration.
 class NeumorphicDecoration {
-  static const double defaultBlur = 12.0;
-  static const Offset defaultOffset = Offset(6, 6);
-
   static BoxDecoration flat({
-    Color color = AppTheme.surface,
-    double borderRadius = 20,
+    double borderRadius = 12,
+    Color? color,
     bool isPressed = false,
   }) {
-    if (isPressed) {
-      return BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(borderRadius),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppTheme.surfaceDark.withValues(alpha: 0.8),
-            AppTheme.surface.withValues(alpha: 0.2),
-          ],
-        ),
-        border: Border.all(
-          color: Colors.black.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      );
-    }
-
     return BoxDecoration(
-      color: color,
+      color: color ?? AppTheme.surfaceVariant,
       borderRadius: BorderRadius.circular(borderRadius),
-      boxShadow: [
-        BoxShadow(
-          color: AppTheme.neumorphicDark,
-          offset: defaultOffset,
-          blurRadius: defaultBlur,
-        ),
-        BoxShadow(
-          color: AppTheme.neumorphicLight,
-          offset: -defaultOffset,
-          blurRadius: defaultBlur,
-        ),
-      ],
+      border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
     );
   }
 
-  static BoxDecoration concave({
-    Color color = AppTheme.surface,
-    double borderRadius = 20,
-  }) {
-    return BoxDecoration(
-      borderRadius: BorderRadius.circular(borderRadius),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          AppTheme.surfaceDark,
-          AppTheme.surfaceLight.withValues(alpha: 0.3),
-        ],
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: AppTheme.neumorphicDark,
-          offset: const Offset(4, 4),
-          blurRadius: 8,
-        ),
-        BoxShadow(
-          color: AppTheme.neumorphicLight,
-          offset: const Offset(-4, -4),
-          blurRadius: 8,
-        ),
-      ],
-    );
+  static BoxDecoration convex({double borderRadius = 12, Color? color}) {
+    return flat(borderRadius: borderRadius, color: color);
   }
 
-  static BoxDecoration convex({
-    Color color = AppTheme.surface,
-    double borderRadius = 20,
-  }) {
-    return BoxDecoration(
-      borderRadius: BorderRadius.circular(borderRadius),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          AppTheme.surfaceLight.withValues(alpha: 0.1),
-          AppTheme.surfaceDark.withValues(alpha: 0.3),
-        ],
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: AppTheme.neumorphicDark,
-          offset: defaultOffset,
-          blurRadius: defaultBlur,
-        ),
-        BoxShadow(
-          color: AppTheme.neumorphicLight,
-          offset: -defaultOffset,
-          blurRadius: defaultBlur,
-        ),
-      ],
-    );
+  static BoxDecoration concave({double borderRadius = 12, Color? color}) {
+    return flat(borderRadius: borderRadius, color: color);
   }
 
-  // Simplified decoration for cards in a list to improve performance
   static BoxDecoration listCard({double borderRadius = 16}) {
-    return BoxDecoration(
-      color: AppTheme.surface,
-      borderRadius: BorderRadius.circular(borderRadius),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
-    );
+    return flat(borderRadius: borderRadius, color: AppTheme.surface);
+  }
+
+  static BoxDecoration button({
+    Color? color,
+    double borderRadius = 12,
+    bool isPressed = false,
+  }) {
+    return flat(borderRadius: borderRadius, color: color, isPressed: isPressed);
   }
 }

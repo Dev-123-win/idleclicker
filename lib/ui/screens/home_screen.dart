@@ -55,6 +55,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final math.Random _random = math.Random();
   DateTime? _lastManualTap;
   int _fastTapCounter = 0;
+  late Stream<PayoutModel> _payoutStream;
 
   @override
   void initState() {
@@ -65,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _initAnimations();
     _setupGameCallbacks();
     _startCooldownTimer();
+    _payoutStream = PayoutService().getPayoutRotation();
   }
 
   void _initAnimations() {
@@ -92,12 +94,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       _spawnTapParticle();
     };
 
-    widget.gameService.onUserUpdate = (user) {
-      setState(() {
-        _currentUser = user;
-        _animateCoinCounter(user.appCoins);
-      });
-    };
+    widget.gameService.addListener(() {
+      if (mounted) {
+        setState(() {
+          _currentUser = widget.gameService.currentUser;
+          if (_currentUser != null) {
+            _animateCoinCounter(_currentUser!.appCoins);
+          }
+        });
+      }
+    });
 
     widget.gameService.onMissionComplete = (reward) {
       _showMissionCompleteDialog(reward);
@@ -219,7 +225,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   Widget _buildPayoutTicker() {
     return StreamBuilder<PayoutModel>(
-      stream: PayoutService().getPayoutRotation(),
+      stream: _payoutStream,
       builder: (context, snapshot) {
         if (!snapshot.hasData || snapshot.data == null) {
           return const SizedBox(height: 38);
@@ -439,7 +445,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 return Column(
                   children: [
                     _buildTopBar(),
-                    _buildPayoutTicker(),
                     _buildWithdrawalGoalPrompt(),
                     Padding(
                       padding: const EdgeInsets.symmetric(
@@ -458,12 +463,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     if (activeMission != null &&
                         !isInCooldown &&
                         !widget.gameService.isPenaltyActive)
-                      _buildActiveMissionCard(activeMission)
-                    else if (activeMission == null &&
+                      _buildActiveMissionCard(activeMission),
+                    if (activeMission == null &&
                         !isInCooldown &&
                         !widget.gameService.isPenaltyActive)
                       _buildNoMissionCard(),
                     const Spacer(),
+                    _buildPayoutTicker(),
+                    const SizedBox(height: 12),
                     _buildBoostRow(),
                     const SizedBox(height: 12),
                     Transform.scale(
@@ -502,6 +509,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           // Coin display - Clickable to withdraw
           GestureDetector(
             onTap: widget.onNavigateToWithdrawal,
+            behavior: HitTestBehavior.opaque,
             child: NeumorphicContainer(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               borderRadius: 16,
@@ -538,56 +546,60 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     final remaining = 100000 - coins;
     final progress = coins / 100000;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: NeumorphicDecoration.flat(borderRadius: 20).copyWith(
-        border: Border.all(
-          color: AppTheme.energyColor.withValues(alpha: 0.1),
-          width: 1,
+    return GestureDetector(
+      onTap: widget.onNavigateToWithdrawal,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: NeumorphicDecoration.flat(borderRadius: 20).copyWith(
+          border: Border.all(
+            color: AppTheme.energyColor.withValues(alpha: 0.1),
+            width: 1,
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.stars, color: AppTheme.energyColor, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'SO CLOSE TO WITHDRAWAL! 🚀',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.stars, color: AppTheme.energyColor, size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'SO CLOSE TO WITHDRAWAL! 🚀',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Just ₹${(remaining / 1000).toStringAsFixed(1)} more to unlock ₹100 UPI!',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
+                      Text(
+                        'Just ₹${(remaining / 1000).toStringAsFixed(1)} more to unlock ₹100 UPI!',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: Colors.white10,
-              valueColor: const AlwaysStoppedAnimation(AppTheme.energyColor),
-              minHeight: 6,
+              ],
             ),
-          ),
-        ],
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: Colors.white10,
+                valueColor: const AlwaysStoppedAnimation(AppTheme.energyColor),
+                minHeight: 6,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

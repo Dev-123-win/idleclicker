@@ -26,7 +26,7 @@ class MissionScreen extends StatefulWidget {
 
 class _MissionScreenState extends State<MissionScreen>
     with TickerProviderStateMixin {
-  String _selectedFilter = 'all';
+  String _selectedFilter = 'available';
   late AnimationController _listController;
 
   @override
@@ -58,27 +58,21 @@ class _MissionScreenState extends State<MissionScreen>
   List<MissionModel> _getFilteredMissions() {
     final allMissions = widget.gameService.missions;
 
+    if (_selectedFilter == 'completed') return [];
+
     return allMissions.where((m) {
       if (m.isSpecial) return false;
       if (widget.user.isMissionOnCooldown(m.id)) return false;
 
-      switch (_selectedFilter) {
-        case 'available':
-          return m.isUnlockedFor(widget.user.unlockedTiers) &&
-              !widget.user.isInMissionCooldown;
-        case 'tier1':
-          return m.tier == 'tier1';
-        case 'tier2':
-          return m.tier == 'tier2';
-        case 'tier3':
-          return m.tier == 'tier3';
-        default:
-          return true;
-      }
+      // Available filter only shows unlocked and not on global cooldown
+      return m.isUnlockedFor(widget.user.unlockedTiers) &&
+          !widget.user.isInMissionCooldown;
     }).toList();
   }
 
   List<MissionModel> _getCompletedMissions() {
+    if (_selectedFilter == 'available') return [];
+
     final allMissions = widget.gameService.missions;
     return allMissions
         .where((m) => widget.user.isMissionOnCooldown(m.id))
@@ -118,34 +112,11 @@ class _MissionScreenState extends State<MissionScreen>
                 physics: const BouncingScrollPhysics(),
                 children: [
                   if (missions.isNotEmpty) ...[
-                    const Text(
-                      'AVAILABLE MISSIONS',
-                      style: TextStyle(
-                        color: Colors.white38,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
                     ...missions.asMap().entries.map((entry) {
                       return _buildAnimatedCard(entry.value, entry.key);
                     }),
                   ],
-                  if (completed.isNotEmpty &&
-                      (_selectedFilter == 'all' ||
-                          _selectedFilter == 'completed')) ...[
-                    const SizedBox(height: 24),
-                    const Text(
-                      'COMPLETED (COOLDOWN)',
-                      style: TextStyle(
-                        color: AppTheme.success,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+                  if (completed.isNotEmpty) ...[
                     ...completed.asMap().entries.map((entry) {
                       return _buildAnimatedCard(
                         entry.value,
@@ -174,16 +145,11 @@ class _MissionScreenState extends State<MissionScreen>
   }
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
+    return const Padding(
+      padding: EdgeInsets.all(20),
       child: Row(
         children: [
-          NeumorphicIconButton(
-            icon: Icons.arrow_back,
-            onPressed: widget.onBack,
-          ),
-          const SizedBox(width: 16),
-          const Text(
+          Text(
             'MISSIONS',
             style: TextStyle(
               color: Colors.white,
@@ -268,12 +234,8 @@ class _MissionScreenState extends State<MissionScreen>
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
-          _buildFilterChip('all', 'All'),
           _buildFilterChip('available', 'Available'),
           _buildFilterChip('completed', 'Completed'),
-          _buildFilterChip('tier1', 'Quick'),
-          _buildFilterChip('tier2', 'Medium'),
-          _buildFilterChip('tier3', 'Premium'),
         ],
       ),
     );

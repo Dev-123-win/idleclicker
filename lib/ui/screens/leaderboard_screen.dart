@@ -24,21 +24,16 @@ class LeaderboardScreen extends StatefulWidget {
 
 class _LeaderboardScreenState extends State<LeaderboardScreen>
     with SingleTickerProviderStateMixin {
-  late TabController _tabController;
   late AnimationController _animController;
   bool _isLoading = true;
-  String _selectedTimeframe = 'daily';
 
   // Mock leaderboard data - in production, this would come from Firestore
   final List<LeaderboardEntry> _dailyLeaderboard = [];
-  final List<LeaderboardEntry> _weeklyLeaderboard = [];
-  final List<LeaderboardEntry> _allTimeLeaderboard = [];
   int _userRank = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
     _animController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -54,8 +49,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
       setState(() {
         _dailyLeaderboard.clear();
-        _weeklyLeaderboard.clear();
-        _allTimeLeaderboard.clear();
 
         for (int i = 0; i < rawData.length; i++) {
           final data = rawData[i];
@@ -69,10 +62,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           );
           _dailyLeaderboard.add(entry);
         }
-
-        // For now, same data for all timeframes as backend logic is evolving
-        _weeklyLeaderboard.addAll(_dailyLeaderboard);
-        _allTimeLeaderboard.addAll(_dailyLeaderboard);
 
         // Find user's rank in top 10
         final index = _dailyLeaderboard.indexWhere(
@@ -92,19 +81,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   List<LeaderboardEntry> get _currentLeaderboard {
-    switch (_selectedTimeframe) {
-      case 'weekly':
-        return _weeklyLeaderboard;
-      case 'allTime':
-        return _allTimeLeaderboard;
-      default:
-        return _dailyLeaderboard;
-    }
+    return _dailyLeaderboard;
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _animController.dispose();
     super.dispose();
   }
@@ -117,7 +98,6 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         child: Column(
           children: [
             _buildHeader(),
-            _buildTimeframeTabs(),
             _buildUserRankCard(),
             const NativeAdWidget(),
             Expanded(
@@ -144,103 +124,31 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          NeumorphicIconButton(
-            icon: Icons.arrow_back,
-            onPressed: widget.onBack,
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'LEADERBOARD',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 3,
-                ),
+      child: SizedBox(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'LEADERBOARD',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 3,
               ),
-              Text(
-                'Updates every 24 hours',
-                style: TextStyle(
-                  color: AppTheme.primary.withValues(alpha: 0.7),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1,
-                ),
-              ),
-            ],
-          ),
-          SharedCoinDisplay(
-            amount: widget.user.appCoins,
-            iconSize: 28,
-            fontSize: 20,
-          ),
-          IconButton(
-            onPressed: () {
-              setState(() => _isLoading = true);
-              _loadLeaderboard();
-            },
-            icon: const Icon(Icons.refresh, color: Colors.white54),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeframeTabs() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          _buildTimeframeChip('daily', 'Daily'),
-          const SizedBox(width: 12),
-          _buildTimeframeChip('weekly', 'Weekly'),
-          const SizedBox(width: 12),
-          _buildTimeframeChip('allTime', 'All Time'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeframeChip(String value, String label) {
-    final isSelected = _selectedTimeframe == value;
-
-    return GestureDetector(
-      onTap: () {
-        setState(() => _selectedTimeframe = value);
-        _animController.reset();
-        _animController.forward();
-      },
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 80, minHeight: 48),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: isSelected
-            ? BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppTheme.primary, AppTheme.primaryDark],
-                ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primary.withValues(alpha: 0.3),
-                    blurRadius: 10,
-                  ),
-                ],
-              )
-            : NeumorphicDecoration.flat(borderRadius: 20),
-        child: Center(
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? Colors.black : Colors.white70,
-              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
             ),
-          ),
+            Text(
+              'Updates every 24 hours',
+              style: TextStyle(
+                color: AppTheme.primary.withValues(alpha: 0.7),
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
         ),
       ),
     );

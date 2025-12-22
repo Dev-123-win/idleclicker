@@ -1,10 +1,11 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import '../theme/app_theme.dart';
 
-/// High-performance tap button with unique physics-based animations
-/// Designed for instant UI feedback with optimistic updates
+/// Material 3 physics-based tap button with fluid animations
+/// Designed for instant UI feedback with realistic touch response
 class TapButton extends StatefulWidget {
   final VoidCallback onTap;
   final bool isEnabled;
@@ -28,7 +29,6 @@ class TapButton extends StatefulWidget {
 class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
   late AnimationController _scaleController;
   late AnimationController _pulseController;
-  late AnimationController _rippleController;
   late AnimationController _glowController;
 
   final List<_TapRipple> _ripples = [];
@@ -36,7 +36,6 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
   final math.Random _random = math.Random();
 
   bool _isPressed = false;
-  int _tapCount = 0;
 
   @override
   void initState() {
@@ -47,21 +46,15 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
   void _initAnimations() {
     // Ultra-fast scale animation for instant feedback
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 30),
+      duration: const Duration(milliseconds: 50),
       vsync: this,
     );
 
-    // Continuous pulse for idle state
+    // Continuous pulse for idle state (slower, more subtle in Material 3)
     _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+      duration: const Duration(milliseconds: 2500),
       vsync: this,
     )..repeat(reverse: true);
-
-    // Ripple animation
-    _rippleController = AnimationController(
-      duration: const Duration(milliseconds: 600),
-      vsync: this,
-    );
 
     // Glow animation for energy state
     _glowController = AnimationController(
@@ -80,7 +73,7 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
     if (widget.currentEnergy <= 0) {
       HapticFeedback.mediumImpact();
     } else {
-      HapticFeedback.lightImpact();
+      HapticFeedback.lightImpact(); // Crisp click feel
     }
   }
 
@@ -89,7 +82,6 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
 
     setState(() {
       _isPressed = false;
-      _tapCount++;
     });
 
     _scaleController.reverse();
@@ -114,7 +106,7 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
       position: position,
       controller:
           AnimationController(
-              duration: const Duration(milliseconds: 500),
+              duration: const Duration(milliseconds: 600),
               vsync: this,
             )
             ..forward().then((_) {
@@ -128,13 +120,13 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
   }
 
   void _spawnParticles(Offset center) {
-    final particleCount = 6 + _random.nextInt(4);
+    final particleCount = 8 + _random.nextInt(4);
 
     for (int i = 0; i < particleCount; i++) {
       final angle =
           (i / particleCount) * 2 * math.pi + _random.nextDouble() * 0.5;
-      final velocity = 150 + _random.nextDouble() * 100;
-      final size = 3.0 + _random.nextDouble() * 4;
+      final velocity = 100 + _random.nextDouble() * 100;
+      final size = 4.0 + _random.nextDouble() * 4;
 
       final particle = _EnergyParticle(
         position: center,
@@ -146,7 +138,7 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
         color: _random.nextBool() ? AppTheme.primary : AppTheme.energyColor,
         controller:
             AnimationController(
-                duration: Duration(milliseconds: 400 + _random.nextInt(200)),
+                duration: Duration(milliseconds: 500 + _random.nextInt(300)),
                 vsync: this,
               )
               ..forward().then((_) {
@@ -164,7 +156,6 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
   void dispose() {
     _scaleController.dispose();
     _pulseController.dispose();
-    _rippleController.dispose();
     _glowController.dispose();
     for (final ripple in _ripples) {
       ripple.controller.dispose();
@@ -178,6 +169,12 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     final energyPercent = widget.currentEnergy / widget.maxEnergy;
+    // Calculate button scale based on press state and pulse
+    final baseScale =
+        1.0 - (_scaleController.value * 0.05); // Subtle compression
+    final pulseScale = widget.isEnabled && !_isPressed
+        ? 1.0 + (_pulseController.value * 0.02)
+        : 1.0;
 
     return SizedBox(
       width: 200,
@@ -200,31 +197,145 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
             },
           ),
 
-          // Ripple effects
-          ..._ripples.map(
-            (ripple) => AnimatedBuilder(
-              animation: ripple.controller,
+          // Main tap button with Physics-based Material 3 feel
+          GestureDetector(
+            onTapDown: _handleTapDown,
+            onTapUp: _handleTapUp,
+            onTapCancel: _handleTapCancel,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_scaleController, _pulseController]),
               builder: (context, child) {
-                final scale = 1 + ripple.controller.value * 2;
-                final opacity = 1 - ripple.controller.value;
-
-                return Positioned(
-                  left: ripple.position.dx - 25,
-                  top: ripple.position.dy - 25,
-                  child: Transform.scale(
-                    scale: scale,
-                    child: Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppTheme.primary.withValues(
-                            alpha: opacity * 0.5,
-                          ),
-                          width: 2,
-                        ),
+                return Transform.scale(
+                  scale: baseScale * pulseScale,
+                  child: Container(
+                    width: 160,
+                    height: 160,
+                    // Material 3 Physical Model
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      // Gradient surface for depth
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: widget.isEnabled
+                            ? _isPressed
+                                  ? [
+                                      AppTheme.surfaceVariant,
+                                      AppTheme.surfaceVariant,
+                                    ] // Flat when pressed
+                                  : [
+                                      AppTheme
+                                          .surfaceLight, // Highlight top-left
+                                      const Color(
+                                        0xFF1A1A1A,
+                                      ), // Shadow bottom-right
+                                    ]
+                            : [Colors.grey.shade900, Colors.grey.shade900],
                       ),
+                      // Physical shadow (elevation)
+                      boxShadow: widget.isEnabled && !_isPressed
+                          ? [
+                              // Ambient Shadow
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                offset: const Offset(0, 10),
+                                blurRadius: 20,
+                              ),
+                              // Key Light Shadow (Primary Color Glow)
+                              BoxShadow(
+                                color: AppTheme.primary.withValues(alpha: 0.15),
+                                offset: const Offset(0, 4),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ]
+                          : [
+                              // Reduced shadow when pressed
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                offset: const Offset(0, 2),
+                                blurRadius: 5,
+                              ),
+                            ],
+                      border: Border.all(
+                        color: widget.isEnabled
+                            ? AppTheme.primary.withValues(alpha: 0.3)
+                            : Colors.white10,
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Inner circle with icon
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black.withValues(alpha: 0.4),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.5),
+                                blurRadius: 5,
+                                spreadRadius: -2,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child:
+                              Icon(
+                                    widget.isAutoClickerActive
+                                        ? Icons.settings
+                                        : Icons.touch_app_rounded,
+                                    size: 48,
+                                    color: widget.isEnabled
+                                        ? AppTheme.primary
+                                        : Colors.grey,
+                                  )
+                                  .animate(
+                                    target: widget.isAutoClickerActive ? 1 : 0,
+                                  )
+                                  .rotate(
+                                    duration: 2.seconds,
+                                    curve: Curves.linear,
+                                  ),
+                        ),
+
+                        // Ripples (Rendered inside the button bounds)
+                        ..._ripples.map((ripple) {
+                          return AnimatedBuilder(
+                            animation: ripple.controller,
+                            builder: (context, child) {
+                              final progress = ripple.controller.value;
+                              final opacity = 1.0 - progress;
+
+                              return Positioned(
+                                left:
+                                    ripple.position.dx -
+                                    80 -
+                                    10, // Relative to center
+                                top: ripple.position.dy - 80 - 10,
+                                child:
+                                    Container(
+                                      width: 20,
+                                      height: 20,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: Colors.white.withValues(
+                                          alpha: opacity * 0.3,
+                                        ),
+                                      ),
+                                    ).animate().scale(
+                                      begin: const Offset(0, 0),
+                                      end: const Offset(5, 5),
+                                      duration: 600.ms,
+                                    ),
+                              );
+                            },
+                          );
+                        }),
+                      ],
                     ),
                   ),
                 );
@@ -232,7 +343,7 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
             ),
           ),
 
-          // Energy particles
+          // Tap particles (outside)
           ..._particles.map(
             (particle) => AnimatedBuilder(
               animation: particle.controller,
@@ -265,141 +376,54 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
             ),
           ),
 
-          // Main tap button
-          GestureDetector(
-            onTapDown: _handleTapDown,
-            onTapUp: _handleTapUp,
-            onTapCancel: _handleTapCancel,
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_scaleController, _pulseController]),
-              builder: (context, child) {
-                final baseScale = 1.0 - (_scaleController.value * 0.08);
-                final pulseScale = widget.isEnabled && !_isPressed
-                    ? 1.0 + (_pulseController.value * 0.02)
-                    : 1.0;
-
-                return Transform.scale(
-                  scale: baseScale * pulseScale,
-                  child: Container(
-                    width: 160,
-                    height: 160,
-                    decoration: widget.isEnabled
-                        ? _isPressed
-                              ? NeumorphicDecoration.flat(
-                                  borderRadius: 80,
-                                  isPressed: true,
-                                )
-                              : NeumorphicDecoration.convex(borderRadius: 80)
-                        : BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.grey.shade900,
-                            border: Border.all(color: Colors.white10),
-                          ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Glow effect when active
-                        if (widget.isEnabled && !_isPressed)
-                          Positioned.fill(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.primary.withValues(
-                                      alpha:
-                                          0.05 + (_glowController.value * 0.05),
-                                    ),
-                                    blurRadius: 30,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        // Inner circle with icon
-                        Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppTheme.surfaceDark.withValues(alpha: 0.5),
-                          ),
-                          child: Icon(
-                            widget.isAutoClickerActive
-                                ? Icons.settings
-                                : Icons.touch_app,
-                            size: 48,
-                            color: widget.isEnabled
-                                ? AppTheme.primary
-                                : Colors.grey,
-                          ),
-                        ),
-
-                        // Tap counter badge
-                        if (_tapCount > 0)
-                          Positioned(
-                            bottom: 16,
-                            child: AnimatedOpacity(
-                              opacity: _tapCount % 10 == 0 ? 1.0 : 0.0,
-                              duration: const Duration(milliseconds: 200),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primary,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '+${_tapCount % 10 == 0 ? 10 : _tapCount % 10}',
-                                  style: const TextStyle(
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // Auto-clicker indicator
+          // Auto-clicker badge
           if (widget.isAutoClickerActive)
             Positioned(
-              top: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.energyColor.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.autorenew, color: Colors.white, size: 12),
-                    SizedBox(width: 4),
-                    Text(
-                      'AUTO',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              top: 0,
+              child:
+                  Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppTheme.energyColor.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: AppTheme.energyColor.withValues(alpha: 0.5),
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.energyColor.withValues(
+                                alpha: 0.2,
+                              ),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.bolt,
+                              color: AppTheme.energyColor,
+                              size: 14,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'AUTO ACTIVE',
+                              style: TextStyle(
+                                color: AppTheme.energyColor,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                      .animate(onPlay: (c) => c.repeat())
+                      .shimmer(duration: 2.seconds, color: Colors.white24),
             ),
         ],
       ),
@@ -424,21 +448,25 @@ class _EnergyRingPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2 - 10;
 
-    // Background ring
+    // Background track
     final bgPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.05)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 4;
+      ..strokeWidth = 3;
 
     canvas.drawCircle(center, radius, bgPaint);
 
+    if (!isActive) return;
+
     // Energy arc
     final arcPaint = Paint()
-      ..color = isActive
-          ? Color.lerp(AppTheme.energyColor, AppTheme.primary, glowIntensity)!
-          : Colors.grey.withValues(alpha: 0.3)
+      ..color = Color.lerp(
+        AppTheme.energyColor,
+        AppTheme.primary,
+        glowIntensity,
+      )!
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 6
+      ..strokeWidth = 5
       ..strokeCap = StrokeCap.round;
 
     final sweepAngle = 2 * math.pi * progress;
@@ -451,16 +479,16 @@ class _EnergyRingPainter extends CustomPainter {
     );
 
     // Glow effect
-    if (isActive && progress > 0) {
+    if (progress > 0) {
       final glowPaint = Paint()
-        ..color = AppTheme.primary.withValues(alpha: 0.1 + glowIntensity * 0.1)
+        ..color = AppTheme.primary.withValues(alpha: 0.2 + glowIntensity * 0.1)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 12
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
+        ..strokeWidth = 10
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
 
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
-        -math.pi / 2,
+        -math.pi / 2, // Start at top
         sweepAngle,
         false,
         glowPaint,

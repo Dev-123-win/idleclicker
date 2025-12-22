@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import '../../core/models/user_model.dart';
 import '../../core/services/game_service.dart';
 import '../../core/services/ad_service.dart';
@@ -156,11 +155,6 @@ class _AutoClickerScreenState extends State<AutoClickerScreen>
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          NeumorphicIconButton(
-            icon: Icons.arrow_back,
-            onPressed: widget.onBack,
-          ),
-          const SizedBox(width: 16),
           const Expanded(
             child: Text(
               'AUTO-CLICKER',

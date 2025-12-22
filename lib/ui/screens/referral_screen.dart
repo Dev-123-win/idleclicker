@@ -126,7 +126,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
       height: 180,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: AppTheme.primary.withOpacity(0.05),
+        color: AppTheme.primary.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(30),
       ),
       child: Column(
@@ -135,7 +135,7 @@ class _ReferralScreenState extends State<ReferralScreen> {
           Icon(
             Icons.group_add_outlined,
             size: 80,
-            color: AppTheme.primary.withOpacity(0.3),
+            color: AppTheme.primary.withValues(alpha: 0.3),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -291,9 +291,9 @@ class _ReferralScreenState extends State<ReferralScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppTheme.primary.withOpacity(0.1),
+            color: AppTheme.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: AppTheme.primary.withOpacity(0.2)),
+            border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
           ),
           child: Row(
             children: [

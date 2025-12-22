@@ -31,12 +31,15 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  // Hide status bar and navigation bar (Immersive Mode)
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: AppTheme.background,
+      systemNavigationBarColor: Colors.transparent,
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
@@ -58,7 +61,7 @@ class TapMineApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
-        Provider<GameService>(create: (_) => GameService()),
+        ChangeNotifierProvider<GameService>(create: (_) => GameService()),
         Provider<NotificationService>(create: (_) => NotificationService()),
         ChangeNotifierProvider<AdService>(create: (_) => AdService()),
       ],
@@ -136,6 +139,8 @@ class _AppNavigatorState extends State<AppNavigator> {
   late AuthService _authService;
   late GameService _gameService;
   late PageController _pageController;
+  Future<void>? _initializationFuture;
+  bool _isLoggedIn = false;
 
   final List<AppScreen> _gameScreens = [
     AppScreen.missions,
@@ -210,7 +215,33 @@ class _AppNavigatorState extends State<AppNavigator> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _authService = context.read<AuthService>();
       _gameService = context.read<GameService>();
+      // Start initialization immediately and store the future
+      _initializationFuture = _runInitialization();
     });
+  }
+
+  /// Runs all initialization logic during the splash screen
+  Future<void> _runInitialization() async {
+    _authService = context.read<AuthService>();
+    _gameService = context.read<GameService>();
+
+    if (_authService.isLoggedIn) {
+      final user = await _authService.getUserModel();
+      if (user != null) {
+        _currentUser = user;
+        _isLoggedIn = true;
+        _gameService.addListener(() {
+          if (mounted) {
+            setState(() {
+              _currentUser = _gameService.currentUser;
+            });
+          }
+        });
+        await _gameService.initialize(user);
+        return;
+      }
+    }
+    _isLoggedIn = false;
   }
 
   @override
@@ -219,22 +250,13 @@ class _AppNavigatorState extends State<AppNavigator> {
     super.dispose();
   }
 
-  void _onSplashComplete() async {
-    _authService = context.read<AuthService>();
-    _gameService = context.read<GameService>();
-
-    if (_authService.isLoggedIn) {
-      final user = await _authService.getUserModel();
-      if (user != null) {
-        setState(() {
-          _currentUser = user;
-          _currentScreen = AppScreen.home;
-        });
-        await _gameService.initialize(user);
-        return;
-      }
+  void _onSplashComplete() {
+    // Initialization already ran during splash, just navigate to correct screen
+    if (_isLoggedIn && _currentUser != null) {
+      setState(() => _currentScreen = AppScreen.home);
+    } else {
+      setState(() => _currentScreen = AppScreen.login);
     }
-    setState(() => _currentScreen = AppScreen.login);
   }
 
   void _onLoginSuccess() async {
@@ -243,6 +265,13 @@ class _AppNavigatorState extends State<AppNavigator> {
 
     final user = await _authService.getUserModel();
     if (user != null) {
+      _gameService.addListener(() {
+        if (mounted) {
+          setState(() {
+            _currentUser = _gameService.currentUser;
+          });
+        }
+      });
       setState(() {
         _currentUser = user;
         _currentScreen = AppScreen.home;
@@ -310,7 +339,7 @@ class _AppNavigatorState extends State<AppNavigator> {
                   ),
                 ],
               ),
-              backgroundColor: AppTheme.accent.withOpacity(0.9),
+              backgroundColor: AppTheme.accent.withValues(alpha: 0.9),
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 2),
               shape: RoundedRectangleBorder(
@@ -332,6 +361,7 @@ class _AppNavigatorState extends State<AppNavigator> {
       return SplashScreen(
         key: const ValueKey('splash'),
         onComplete: _onSplashComplete,
+        initializationFuture: _initializationFuture,
       );
     }
 
@@ -346,11 +376,16 @@ class _AppNavigatorState extends State<AppNavigator> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
+    // Check if the current screen is a standalone screen (not in PageView)
+    if (!_gameScreens.contains(_currentScreen)) {
+      return _buildScreen(_currentScreen);
+    }
+
     return Scaffold(
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        physics: const BouncingScrollPhysics(),
+        physics: const NeverScrollableScrollPhysics(),
         children: _gameScreens.map((screen) => _buildScreen(screen)).toList(),
       ),
       bottomNavigationBar: _buildBottomNav(),

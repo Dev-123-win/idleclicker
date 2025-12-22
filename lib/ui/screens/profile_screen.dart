@@ -61,18 +61,24 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              _buildHeader(),
-              _buildProfileCard(),
-              _buildStatsGrid(),
-              _buildReferralSection(),
-              _buildLogoutButton(),
-              const SizedBox(height: 40),
-            ],
-          ),
+        child: Column(
+          children: [
+            _buildHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  children: [
+                    _buildProfileCard(),
+                    _buildStatsGrid(),
+                    _buildReferralSection(),
+                    _buildLogoutButton(),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -83,11 +89,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       padding: const EdgeInsets.all(20),
       child: Row(
         children: [
-          NeumorphicIconButton(
-            icon: Icons.arrow_back,
-            onPressed: widget.onBack,
-          ),
-          const SizedBox(width: 16),
           const Expanded(
             child: Text(
               'PROFILE',
@@ -134,7 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppTheme.primary.withOpacity(0.4),
+                      color: AppTheme.primary.withValues(alpha: 0.4),
                       blurRadius: 20,
                     ),
                   ],
@@ -167,7 +168,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: AppTheme.warning.withOpacity(0.2),
+                  color: AppTheme.warning.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
