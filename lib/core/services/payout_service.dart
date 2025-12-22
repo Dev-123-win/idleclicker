@@ -45,76 +45,200 @@ class PayoutService {
     'div***@gmail.com',
     'man***@gmail.com',
     'swa***@gmail.com',
+    'abh***@yahoo.com',
+    'adi***@outlook.com',
+    'aka***@gmail.com',
+    'aks***@gmail.com',
+    'ama***@gmail.com',
+    'ank***@gmail.com',
+    'anu***@gmail.com',
+    'apa***@gmail.com',
+    'ash***@gmail.com',
+    'avi***@gmail.com',
+    'ayush***@gmail.com',
+    'bha***@gmail.com',
+    'cha***@gmail.com',
+    'dak***@gmail.com',
+    'dev***@gmail.com',
+    'dhi***@gmail.com',
+    'ees***@gmail.com',
+    'gau***@gmail.com',
+    'har***@gmail.com',
+    'him***@gmail.com',
+    'ish***@gmail.com',
+    'jai***@gmail.com',
+    'jiv***@gmail.com',
+    'kab***@gmail.com',
+    'kan***@gmail.com',
+    'kar***@gmail.com',
+    'kus***@gmail.com',
+    'lak***@gmail.com',
+    'mad***@gmail.com',
+    'may***@gmail.com',
+    'nak***@gmail.com',
+    'nav***@gmail.com',
+    'nee***@gmail.com',
+    'nih***@gmail.com',
+    'nit***@gmail.com',
+    'omk***@gmail.com',
+    'par***@gmail.com',
+    'pra***@gmail.com',
+    'rag***@gmail.com',
+    'ran***@gmail.com',
+    'rit***@gmail.com',
+    'sac***@gmail.com',
+    'sah***@gmail.com',
+    'sam***@gmail.com',
+    'sar***@gmail.com',
+    'shi***@gmail.com',
+    'shr***@gmail.com',
+    'sid***@gmail.com',
+    'tar***@gmail.com',
+    'uday***@gmail.com',
+    'ujj***@gmail.com',
+    'utk***@gmail.com',
+    'var***@gmail.com',
+    'ved***@gmail.com',
+    'vin***@gmail.com',
+    'yas***@gmail.com',
+    'yuv***@gmail.com',
+    'aar***@gmail.com',
+    'adh***@gmail.com',
+    'adv***@gmail.com',
+    'ish***@gmail.com',
+    'jia***@gmail.com',
+    'kia***@gmail.com',
+    'myr***@gmail.com',
+    'nav***@gmail.com',
+    'par***@gmail.com',
+    'rad***@gmail.com',
+    'ria***@gmail.com',
+    'saa***@gmail.com',
+    'tan***@gmail.com',
+    'vanya***@gmail.com',
+    'zoy***@gmail.com',
+    'nit***@gmail.com',
+    'pre***@gmail.com',
+    'mon***@gmail.com',
+    'son***@gmail.com',
+    'kee***@gmail.com',
+    'dee***@gmail.com',
+    'lee***@gmail.com',
+    'ree***@gmail.com',
   ];
 
-  final List<double> _mockAmounts = [100.0, 200.0, 150.0, 100.0, 300.0, 500.0];
+  final List<double> _mockAmounts = [
+    100.0,
+    200.0,
+    150.0,
+    100.0,
+    300.0,
+    500.0,
+    100.0,
+    250.0,
+  ];
 
-  /// Get a stream of recent payouts (Real + Mock)
-  Stream<List<PayoutModel>> getPayoutTicker() {
-    // Real payouts stream
-    final realPayoutsStream = _firestore
-        .collection('withdrawals')
-        .where('status', isEqualTo: 'completed')
-        .orderBy('timestamp', descending: true)
-        .limit(10)
-        .snapshots();
+  /// Get a single payout every few seconds for the ticker
+  Stream<PayoutModel> getPayoutRotation() async* {
+    while (true) {
+      // 1. Fetch real payouts
+      List<PayoutModel> pool = [];
+      try {
+        final realSnapshot = await _firestore
+            .collection('withdrawals')
+            .where('status', isEqualTo: 'completed')
+            .orderBy('timestamp', descending: true)
+            .limit(10)
+            .get();
 
-    return realPayoutsStream.map((snapshot) {
-      final List<PayoutModel> payouts = [];
+        for (var doc in realSnapshot.docs) {
+          final data = doc.data();
+          final email = data['email'] as String?;
+          final userId = data['userId'] as String;
 
-      // 1. Add real payouts
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final userId = data['userId'] as String;
-        final email = data['email'] as String?;
+          String displayId;
+          if (email != null && email.contains('@')) {
+            final parts = email.split('@');
+            final name = parts[0];
+            displayId =
+                '${name.substring(0, min(2, name.length))}***@${parts[1]}';
+          } else {
+            displayId = 'User-${userId.substring(0, 4).toUpperCase()}***';
+          }
 
-        String displayId;
-        if (email != null && email.contains('@')) {
-          final parts = email.split('@');
-          final name = parts[0];
-          displayId =
-              '${name.substring(0, min(3, name.length))}***@${parts[1]}';
-        } else {
-          displayId = 'User-${userId.substring(0, 4).toUpperCase()}***';
+          pool.add(
+            PayoutModel(
+              userName: displayId,
+              amount: (data['amount'] as num).toDouble() / 1000.0,
+              timestamp: (data['timestamp'] as Timestamp).toDate(),
+              isReal: true,
+            ),
+          );
         }
-
-        payouts.add(
-          PayoutModel(
-            userName: displayId,
-            amount: (data['amount'] as num).toDouble() / 1000.0, // AC to INR
-            timestamp: (data['timestamp'] as Timestamp).toDate(),
-            isReal: true,
-          ),
-        );
+      } catch (e) {
+        print('Error fetching real payouts: $e');
       }
 
-      // 2. Add high-quality mock payouts to fill space and look trustworthy
-      // We generate mock payouts that look like they happened recently
+      // 2. Add some mock payouts to the pool (total 50 in pool)
       final now = DateTime.now();
-      for (int i = 0; i < 15; i++) {
-        final mockId =
-            _mockIdentifiers[_random.nextInt(_mockIdentifiers.length)];
-        final mockAmount = _mockAmounts[_random.nextInt(_mockAmounts.length)];
-        final mockTime = now.subtract(
-          Duration(
-            minutes: _random.nextInt(60 * 24), // Last 24 hours
-          ),
-        );
-
-        payouts.add(
+      while (pool.length < 50) {
+        pool.add(
           PayoutModel(
-            userName: mockId,
-            amount: mockAmount,
-            timestamp: mockTime,
+            userName:
+                _mockIdentifiers[_random.nextInt(_mockIdentifiers.length)],
+            amount: _mockAmounts[_random.nextInt(_mockAmounts.length)],
+            timestamp: now.subtract(
+              Duration(minutes: _random.nextInt(1440)),
+            ), // Last 24h
             isReal: false,
           ),
         );
       }
 
-      // 3. Sort by time
-      payouts.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      // 3. Shuffle mock part but keep real ones scattered/front
+      pool.shuffle();
 
-      return payouts;
-    });
+      // 4. Yield them one by one
+      for (var payout in pool) {
+        yield payout;
+        await Future.delayed(const Duration(seconds: 8)); // Gradual display
+      }
+
+      // After yielding entire pool, loop starts again with fresh real data
+    }
+  }
+
+  /// Original stream for compatibility if needed
+  Stream<List<PayoutModel>> getPayoutTicker() {
+    return _firestore
+        .collection('withdrawals')
+        .where('status', isEqualTo: 'completed')
+        .orderBy('timestamp', descending: true)
+        .limit(10)
+        .snapshots()
+        .map((snapshot) {
+          final list = snapshot.docs.map((doc) {
+            final data = doc.data();
+            return PayoutModel(
+              userName: 'User***',
+              amount: (data['amount'] as num).toDouble() / 1000.0,
+              timestamp: (data['timestamp'] as Timestamp).toDate(),
+              isReal: true,
+            );
+          }).toList();
+
+          // Add some mocks
+          for (int i = 0; i < 10; i++) {
+            list.add(
+              PayoutModel(
+                userName:
+                    _mockIdentifiers[_random.nextInt(_mockIdentifiers.length)],
+                amount: 100.0,
+                timestamp: DateTime.now(),
+              ),
+            );
+          }
+          return list;
+        });
   }
 }

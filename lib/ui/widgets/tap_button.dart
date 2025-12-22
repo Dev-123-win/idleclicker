@@ -283,55 +283,40 @@ class _TapButtonState extends State<TapButton> with TickerProviderStateMixin {
                   child: Container(
                     width: 160,
                     height: 160,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: widget.isEnabled
-                          ? LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                AppTheme.surfaceLight,
-                                AppTheme.surface,
-                                AppTheme.surfaceDark,
-                              ],
-                            )
-                          : LinearGradient(
-                              colors: [
-                                Colors.grey.shade800,
-                                Colors.grey.shade900,
-                              ],
-                            ),
-                      boxShadow: [
-                        // Outer shadow
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          offset: _isPressed
-                              ? const Offset(2, 2)
-                              : const Offset(6, 6),
-                          blurRadius: _isPressed ? 8 : 16,
-                        ),
-                        // Inner highlight
-                        BoxShadow(
-                          color: Colors.white.withValues(alpha: 0.05),
-                          offset: _isPressed
-                              ? const Offset(-1, -1)
-                              : const Offset(-4, -4),
-                          blurRadius: _isPressed ? 4 : 12,
-                        ),
-                        // Glow effect when active
-                        if (widget.isEnabled)
-                          BoxShadow(
-                            color: AppTheme.primary.withValues(
-                              alpha: 0.1 + (_glowController.value * 0.1),
-                            ),
-                            blurRadius: 20,
-                            spreadRadius: 2,
+                    decoration: widget.isEnabled
+                        ? _isPressed
+                              ? NeumorphicDecoration.flat(
+                                  borderRadius: 80,
+                                  isPressed: true,
+                                )
+                              : NeumorphicDecoration.convex(borderRadius: 80)
+                        : BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.grey.shade900,
+                            border: Border.all(color: Colors.white10),
                           ),
-                      ],
-                    ),
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
+                        // Glow effect when active
+                        if (widget.isEnabled && !_isPressed)
+                          Positioned.fill(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppTheme.primary.withValues(
+                                      alpha:
+                                          0.05 + (_glowController.value * 0.05),
+                                    ),
+                                    blurRadius: 30,
+                                    spreadRadius: 2,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         // Inner circle with icon
                         Container(
                           width: 100,

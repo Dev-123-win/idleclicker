@@ -9,10 +9,8 @@ import '../../ui/theme/app_theme.dart';
 import '../widgets/neumorphic_widgets.dart';
 import '../widgets/tap_button.dart';
 import '../widgets/native_ad_widget.dart';
-import '../../core/services/notification_service.dart';
 import '../../core/services/payout_service.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:provider/provider.dart';
 
 /// Main Home Screen with Tap Interface
 class HomeScreen extends StatefulWidget {
@@ -22,6 +20,8 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onNavigateToProfile;
   final VoidCallback onNavigateToAutoClicker;
   final VoidCallback onNavigateToLeaderboard;
+  final VoidCallback onNavigateToWithdrawal;
+  final VoidCallback onNavigateToReferral;
 
   const HomeScreen({
     super.key,
@@ -31,6 +31,8 @@ class HomeScreen extends StatefulWidget {
     required this.onNavigateToProfile,
     required this.onNavigateToAutoClicker,
     required this.onNavigateToLeaderboard,
+    required this.onNavigateToWithdrawal,
+    required this.onNavigateToReferral,
   });
 
   @override
@@ -97,8 +99,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       });
     };
 
-    widget.gameService.onMissionComplete = () {
-      _showMissionCompleteDialog();
+    widget.gameService.onMissionComplete = (reward) {
+      _showMissionCompleteDialog(reward);
     };
 
     widget.gameService.onError = (error) {
@@ -165,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   void _handleTap() {
     if (_currentUser?.isInMissionCooldown ?? true) return;
     if (widget.gameService.activeMission == null) {
-      AppSnackBar.warning(context, 'Select a mission first!');
+      widget.onNavigateToMissions();
       return;
     }
 
@@ -193,14 +195,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     widget.gameService.registerTap();
   }
 
-  void _showMissionCompleteDialog() {
+  void _showMissionCompleteDialog(int reward) {
     HapticFeedback.heavyImpact();
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => _MissionCompleteDialog(
-        reward: widget.gameService.activeMission?.acReward ?? 0,
+        reward: reward,
         onContinue: () {
           Navigator.pop(context);
           widget.onNavigateToMissions();
@@ -216,56 +218,59 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildPayoutTicker() {
-    return StreamBuilder<List<PayoutModel>>(
-      stream: PayoutService().getPayoutTicker(),
+    return StreamBuilder<PayoutModel>(
+      stream: PayoutService().getPayoutRotation(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+        if (!snapshot.hasData || snapshot.data == null) {
           return const SizedBox(height: 38);
         }
 
-        final payout = snapshot.data![0];
-        return Container(
-              height: 30,
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black26,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-                  Icon(
-                    Icons.check_circle,
-                    color: payout.isReal
-                        ? AppTheme.primary
-                        : Colors.greenAccent,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'User ${payout.userName} just withdrew ₹${payout.amount.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
+        final payout = snapshot.data!;
+        return RepaintBoundary(
+              child: Container(
+                height: 36,
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                decoration: NeumorphicDecoration.flat(borderRadius: 18),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 12),
+                    Icon(
+                      Icons.check_circle,
+                      color: payout.isReal
+                          ? AppTheme.primary
+                          : AppTheme.success,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'User ${payout.userName} just withdrew ₹${payout.amount.toStringAsFixed(0)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                  const Text(
-                    '• SUCCESS',
-                    style: TextStyle(
-                      color: Colors.greenAccent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                    const Text(
+                      '• SUCCESS',
+                      style: TextStyle(
+                        color: AppTheme.success,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
+                    const SizedBox(width: 12),
+                  ],
+                ),
               ),
             )
-            .animate(key: ValueKey(payout.userName))
+            .animate(
+              key: ValueKey(payout.userName + payout.timestamp.toString()),
+            )
             .fadeIn()
             .slideY(begin: 1.0, end: 0.0);
       },
@@ -398,161 +403,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
   }
 
-  void _showSettingsDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: NeumorphicDecoration.convex(borderRadius: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Settings',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              _buildSettingTile(
-                icon: Icons.volume_up,
-                title: 'Sound Effects',
-                trailing: Switch(
-                  value: true,
-                  onChanged: (v) {},
-                  activeThumbColor: AppTheme.primary,
-                ),
-              ),
-              _buildSettingTile(
-                icon: Icons.vibration,
-                title: 'Haptic Mode',
-                trailing: TextButton(
-                  onPressed: () {
-                    final current = _currentUser?.hapticSetting ?? 'eco';
-                    final next = current == 'strong'
-                        ? 'eco'
-                        : current == 'eco'
-                        ? 'off'
-                        : 'strong';
-                    widget.gameService.updateUserHaptic(next);
-                    setState(() {});
-                  },
-                  child: Text(
-                    (_currentUser?.hapticSetting ?? 'eco').toUpperCase(),
-                    style: const TextStyle(
-                      color: AppTheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              _buildSettingTile(
-                icon: Icons.notifications,
-                title: 'Notifications',
-                trailing: Switch(
-                  value: true,
-                  onChanged: (v) {},
-                  activeThumbColor: AppTheme.primary,
-                ),
-              ),
-              _buildSettingTile(
-                icon: Icons.notification_important,
-                title: 'Test Premium Notification',
-                trailing: const Icon(
-                  Icons.play_circle_fill,
-                  color: AppTheme.primary,
-                ),
-                onTap: () async {
-                  await context.read<NotificationService>().triggerNotification(
-                    title: 'TapMine Premium',
-                    body: 'Custom sound and vibration triggered! ⚡',
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-
-              _buildSettingTile(
-                icon: Icons.help_outline,
-                title: 'Help & FAQ',
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  color: Colors.white38,
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _showHelpDialog();
-                },
-              ),
-              _buildSettingTile(
-                icon: Icons.info_outline,
-                title: 'About',
-                trailing: const Icon(
-                  Icons.chevron_right,
-                  color: Colors.white38,
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  showAboutDialog(
-                    context: context,
-                    applicationName: 'TapMine',
-                    applicationVersion: '1.0.0',
-                    applicationLegalese: '© 2024 TapMine. All rights reserved.',
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'CLOSE',
-                    style: TextStyle(color: Colors.white54),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingTile({
-    required IconData icon,
-    required String title,
-    required Widget trailing,
-    VoidCallback? onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white54, size: 22),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            trailing,
-          ],
-        ),
-      ),
-    );
-  }
-
   @override
   void dispose() {
     // Clear snackbars when leaving the screen
@@ -627,7 +477,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         !widget.gameService.isPenaltyActive)
                       const NativeAdWidget(),
                     const Spacer(),
-                    _buildBottomNav(),
                   ],
                 );
               },
@@ -650,21 +499,29 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // Coin display
-          NeumorphicContainer(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            borderRadius: 16,
-            child: SharedCoinDisplay(
-              amount: _displayCoins,
-              iconSize: 32,
-              fontSize: 20,
+          // Coin display - Clickable to withdraw
+          GestureDetector(
+            onTap: widget.onNavigateToWithdrawal,
+            child: NeumorphicContainer(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              borderRadius: 16,
+              child: SharedCoinDisplay(
+                amount: _displayCoins,
+                iconSize: 32,
+                fontSize: 20,
+              ),
             ),
           ),
 
-          // Settings button
-          NeumorphicIconButton(
-            icon: Icons.settings,
-            onPressed: _showSettingsDialog,
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Referral Share button
+              NeumorphicIconButton(
+                icon: Icons.share,
+                onPressed: widget.onNavigateToReferral,
+              ),
+            ],
           ),
         ],
       ),
@@ -684,9 +541,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       padding: const EdgeInsets.all(16),
-      decoration: NeumorphicDecoration.convex(
-        borderRadius: 20,
-        color: AppTheme.energyColor.withValues(alpha: 0.1),
+      decoration: NeumorphicDecoration.flat(borderRadius: 20).copyWith(
+        border: Border.all(
+          color: AppTheme.energyColor.withValues(alpha: 0.1),
+          width: 1,
+        ),
       ),
       child: Column(
         children: [
@@ -737,10 +596,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.error.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+      decoration: NeumorphicDecoration.flat(borderRadius: 16).copyWith(
+        border: Border.all(color: AppTheme.error.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -802,6 +659,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             label: widget.gameService.isBoostActive
                 ? _formatDuration(widget.gameService.boostRemaining)
                 : 'Auto 2m',
+            isActive: widget.gameService.isBoostActive,
             color: widget.gameService.isBoostActive
                 ? AppTheme.energyColor
                 : AppTheme.primary,
@@ -816,23 +674,28 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
+    bool isActive = false,
     Color? color,
   }) {
     final activeColor = color ?? AppTheme.primary;
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        constraints: const BoxConstraints(minWidth: 100, minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: activeColor.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: activeColor.withValues(alpha: 0.3)),
+        decoration: NeumorphicDecoration.convex(borderRadius: 24).copyWith(
+          border: isActive
+              ? Border.all(
+                  color: activeColor.withValues(alpha: 0.5),
+                  width: 1.5,
+                )
+              : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: activeColor, size: 16),
-            const SizedBox(width: 6),
+            Icon(icon, color: activeColor, size: 18),
+            const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
@@ -899,10 +762,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.warning.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.warning.withValues(alpha: 0.3)),
+      decoration: NeumorphicDecoration.flat(borderRadius: 16).copyWith(
+        border: Border.all(color: AppTheme.warning.withValues(alpha: 0.2)),
       ),
       child: Row(
         children: [
@@ -1240,160 +1101,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       },
     );
   }
-
-  Widget _buildBottomNav() {
-    return Container(
-      margin: const EdgeInsets.all(20),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: NeumorphicDecoration.flat(borderRadius: 30),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem(Icons.home, 'Home', true, () {}),
-          _buildNavItem(
-            Icons.flag,
-            'Missions',
-            false,
-            widget.onNavigateToMissions,
-          ),
-          _buildNavItem(
-            Icons.smart_toy,
-            'Auto',
-            false,
-            widget.onNavigateToAutoClicker,
-          ),
-          _buildNavItem(
-            Icons.leaderboard,
-            'Rank',
-            false,
-            widget.onNavigateToLeaderboard,
-          ),
-          _buildNavItem(
-            Icons.person,
-            'Profile',
-            false,
-            widget.onNavigateToProfile,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(
-    IconData icon,
-    String label,
-    bool isActive,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: isActive
-                ? BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.primary.withValues(alpha: 0.2),
-                  )
-                : null,
-            child: Icon(
-              icon,
-              color: isActive ? AppTheme.primary : Colors.white38,
-              size: 22,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? AppTheme.primary : Colors.white38,
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showHelpDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          width: double.infinity,
-          height: 500,
-          padding: const EdgeInsets.all(24),
-          decoration: NeumorphicDecoration.convex(borderRadius: 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Help & FAQ',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Expanded(
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  children: const [
-                    _FaqItem(
-                      question: 'How do I earn AppCoins?',
-                      answer:
-                          'Select a mission and start tapping! Completing missions awards you AppCoins (AC). You can also earn by watching ads or referring friends.',
-                    ),
-                    _FaqItem(
-                      question: 'How do I withdraw?',
-                      answer:
-                          'Go to your Profile. If you have at least 100,000 AC, you can request a withdrawal to your UPI ID. Withdrawals take 7-10 days.',
-                    ),
-                    _FaqItem(
-                      question: 'What is Energy?',
-                      answer:
-                          'Energy is required to tap. It regenerates over time (1 per minute). You can refill it instantly using AppCoins or watching ads.',
-                    ),
-                    _FaqItem(
-                      question: 'How does Auto-Clicker work?',
-                      answer:
-                          'Auto-Clicker taps for you automatically! You can activate it from the Auto-Clicker tab. Upgrading it increases tap speed.',
-                    ),
-                    _FaqItem(
-                      question: 'Why is my screen red?',
-                      answer:
-                          'If you are in a Mission Cooldown, you cannot start a new mission until the timer expires. You can skip the cooldown by watching an ad.',
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: NeumorphicButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Center(
-                    child: Text(
-                      'CLOSE',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 /// Tap particle model
@@ -1563,48 +1270,6 @@ class _MissionCompleteDialogState extends State<_MissionCompleteDialog>
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _FaqItem extends StatelessWidget {
-  final String question;
-  final String answer;
-
-  const _FaqItem({required this.question, required this.answer});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            question,
-            style: const TextStyle(
-              color: AppTheme.primary,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            answer,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-              height: 1.4,
-            ),
-          ),
-        ],
       ),
     );
   }

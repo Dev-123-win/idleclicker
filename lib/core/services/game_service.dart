@@ -22,11 +22,12 @@ class GameService {
   Timer? _energyRegenTimer;
   Timer? _syncTimer;
   Timer? _autoClickerTimer;
+  Timer? _dailyFreeTimer;
 
-  // Local state for batching
-  int _pendingTaps = 0;
-  int _pendingCoins = 0;
-  bool _isDirty = false;
+  // Local state for auto-clicker
+  int _dailyFreeSecondsRemaining = 0;
+  int _adBoostSecondsRemaining = 0;
+  DateTime? _lastFreeReset;
 
   // Active mission state
   MissionModel? _activeMission;
@@ -35,27 +36,27 @@ class GameService {
   // Penalty state
   DateTime? _penaltyEndTime;
 
-  // Ad-powered auto-clicker state
-  Timer? _boostTimer;
-  Duration _boostRemaining = Duration.zero;
-
   // Callbacks
   Function(UserModel)? onUserUpdate;
   Function(int)? onTapRegistered;
-  Function()? onMissionComplete;
+  Function(int)? onMissionComplete;
   Function(String)? onError;
+  Function()? onAutoClickerUpdate;
 
   UserModel? get currentUser => _currentUser;
   MissionModel? get activeMission => _activeMission;
   int get missionProgress => _missionProgress;
   bool get isAutoClickerRunning => _autoClickerTimer?.isActive ?? false;
+  int get dailyFreeSecondsRemaining => _dailyFreeSecondsRemaining;
+  int get adBoostSecondsRemaining => _adBoostSecondsRemaining;
+
   bool get isPenaltyActive =>
       _penaltyEndTime != null && DateTime.now().isBefore(_penaltyEndTime!);
   Duration get penaltyRemaining => isPenaltyActive
       ? _penaltyEndTime!.difference(DateTime.now())
       : Duration.zero;
-  bool get isBoostActive => _boostRemaining.inSeconds > 0;
-  Duration get boostRemaining => _boostRemaining;
+  bool get isBoostActive => _adBoostSecondsRemaining > 0;
+  Duration get boostRemaining => Duration(seconds: _adBoostSecondsRemaining);
 
   // ... (existing imports)
 
@@ -101,11 +102,53 @@ class GameService {
       }
     };
 
+    // Load Auto-Clicker Local State
+    await _loadAutoClickerLocalState();
+
     adService.onAdCompleted = () {
       if (isBoostActive || (_currentUser?.autoClickerActive ?? false)) {
         startAutoClicker();
       }
     };
+  }
+
+  Future<void> _loadAutoClickerLocalState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final lastResetStr = prefs.getString('last_autoclicker_reset');
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    if (lastResetStr != null) {
+      _lastFreeReset = DateTime.parse(lastResetStr);
+      if (_lastFreeReset!.isBefore(today)) {
+        // Reset for new day
+        _dailyFreeSecondsRemaining = 600; // 10 mins
+        _lastFreeReset = today;
+      } else {
+        _dailyFreeSecondsRemaining =
+            prefs.getInt('daily_free_seconds_remaining') ?? 600;
+      }
+    } else {
+      _dailyFreeSecondsRemaining = 600;
+      _lastFreeReset = today;
+    }
+
+    _adBoostSecondsRemaining = prefs.getInt('ad_boost_seconds_remaining') ?? 0;
+    await _saveAutoClickerLocalState();
+    onAutoClickerUpdate?.call();
+  }
+
+  Future<void> _saveAutoClickerLocalState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      'last_autoclicker_reset',
+      _lastFreeReset?.toIso8601String() ?? '',
+    );
+    await prefs.setInt(
+      'daily_free_seconds_remaining',
+      _dailyFreeSecondsRemaining,
+    );
+    await prefs.setInt('ad_boost_seconds_remaining', _adBoostSecondsRemaining);
   }
 
   void _activatePenalty() {
@@ -179,6 +222,7 @@ class GameService {
           'userId': _currentUser!.uid,
           'referralCode': code.toUpperCase(),
           'idToken': token,
+          'deviceId': _currentUser!.deviceId,
         }),
       );
 
@@ -195,7 +239,6 @@ class GameService {
             referredBy: code.toUpperCase(),
             appCoins: _currentUser!.appCoins + bonus,
           );
-          _isDirty = true;
           await _syncToFirestore(); // Sync the result immediately to ensure consistency
           onUserUpdate?.call(_currentUser!);
           return true;
@@ -218,29 +261,23 @@ class GameService {
 
   /// Load cached local state
   Future<void> _loadCachedState() async {
-    final prefs = await SharedPreferences.getInstance();
-    _pendingTaps = prefs.getInt('pendingTaps') ?? 0;
-    _pendingCoins = prefs.getInt('pendingCoins') ?? 0;
+    // Load pending state from SyncService for optimistic UI
+    await SyncService().loadCachedPending();
 
-    // Apply pending state to user
-    if (_pendingTaps > 0 || _pendingCoins > 0) {
+    final pendingTaps = SyncService().pendingTaps;
+    final pendingCoins = SyncService().pendingCoins;
+
+    if (pendingTaps > 0 || pendingCoins > 0) {
       _currentUser = _currentUser?.copyWith(
-        totalTaps: (_currentUser?.totalTaps ?? 0) + _pendingTaps,
-        appCoins: (_currentUser?.appCoins ?? 0) + _pendingCoins,
+        totalTaps: (_currentUser?.totalTaps ?? 0) + pendingTaps,
+        appCoins: (_currentUser?.appCoins ?? 0) + pendingCoins,
       );
-      _isDirty = true;
     }
   }
 
   /// Save state to local cache
   Future<void> _saveCachedState() async {
-    if (!_isDirty) return;
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('pendingTaps', _pendingTaps);
-    await prefs.setInt('pendingCoins', _pendingCoins);
-
-    _isDirty = false;
+    // No-op - SyncService handles this now
   }
 
   /// Register a tap
@@ -265,9 +302,8 @@ class GameService {
     }
 
     // Consume energy (0.01 per tap = 1 per 100 taps)
-    SyncService().registerTap(coins: 0);
+    SyncService().registerTap(taps: 1, coins: 0);
     _missionProgress++;
-    _isDirty = true;
 
     // Trigger Mission Ads
     if (_activeMission!.adCheckpoints.contains(_missionProgress)) {
@@ -335,7 +371,7 @@ class GameService {
     if (_activeMission == null || _currentUser == null) return;
 
     // Award coins
-    _pendingCoins += _activeMission!.acReward;
+    SyncService().registerTap(taps: 0, coins: _activeMission!.acReward);
 
     // Update missions completed count
     final newMissionsCompleted = _currentUser!.missionsCompleted + 1;
@@ -355,18 +391,25 @@ class GameService {
         (_activeMission!.cooldownMinutes * cooldownMultiplier).round();
     final cooldownEnd = DateTime.now().add(Duration(minutes: adjustedCooldown));
 
+    // Track completed mission for 30-day cooldown
+    Map<String, DateTime> newCompletedMissions = Map.from(
+      _currentUser!.completedMissions,
+    );
+    newCompletedMissions[_activeMission!.id] = DateTime.now();
+
     _currentUser = _currentUser!.copyWith(
       appCoins: _currentUser!.appCoins + _activeMission!.acReward,
-      // totalTaps updated via SyncService
       missionsCompleted: newMissionsCompleted,
       unlockedTiers: newUnlockedTiers,
+      completedMissions: newCompletedMissions,
       missionCooldownEnd: cooldownEnd,
       lastSyncAt: DateTime.now(),
     );
 
+    final reward = _activeMission!.acReward;
+
     _activeMission = null;
     _missionProgress = 0;
-    _isDirty = true;
 
     // Disable wakelock when mission completed
     WakelockPlus.disable();
@@ -374,7 +417,7 @@ class GameService {
     // Immediate sync on mission completion
     _syncToFirestore();
 
-    onMissionComplete?.call();
+    onMissionComplete?.call(reward);
     onUserUpdate?.call(_currentUser!);
   }
 
@@ -439,7 +482,6 @@ class GameService {
   Future<void> updateUserHaptic(String setting) async {
     if (_currentUser == null) return;
     _currentUser = _currentUser!.copyWith(hapticSetting: setting);
-    _isDirty = true;
     await _syncToFirestore();
     onUserUpdate?.call(_currentUser!);
   }
@@ -453,28 +495,17 @@ class GameService {
     }
   }
 
-  /// Start auto-clicker
+  /// Start auto-clicker with 5 taps/sec limit
   void startAutoClicker() {
     if (_currentUser == null || _activeMission == null) return;
     if (_currentUser!.isInMissionCooldown) return;
-    if (AdService().isAdShowing) return; // Prevent starting during an ad
-
-    // Calculate interval based on tier
-    int tapsPerSecond = 5; // Free tier
-    if (_currentUser!.hasPremiumAutoClicker) {
-      switch (_currentUser!.autoClickerTier) {
-        case 'bronze':
-          tapsPerSecond = 8;
-          break;
-        case 'silver':
-          tapsPerSecond = 12;
-          break;
-        case 'gold':
-          tapsPerSecond = 15;
-          break;
-      }
+    if (AdService().isAdShowing) return;
+    if (_dailyFreeSecondsRemaining <= 0 && _adBoostSecondsRemaining <= 0) {
+      onError?.call('Free Daily usage finished. Watch an ad for +10 minutes!');
+      return;
     }
 
+    const tapsPerSecond = 5;
     final interval = Duration(milliseconds: (1000 / tapsPerSecond).round());
 
     _autoClickerTimer?.cancel();
@@ -487,6 +518,22 @@ class GameService {
       registerTap(isAuto: true);
     });
 
+    // Start consumption timer
+    _dailyFreeTimer?.cancel();
+    _dailyFreeTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_dailyFreeSecondsRemaining > 0) {
+        _dailyFreeSecondsRemaining--;
+      } else if (_adBoostSecondsRemaining > 0) {
+        _adBoostSecondsRemaining--;
+      } else {
+        stopAutoClicker();
+        onError?.call('Daily time over! Watch an ad to continue.');
+      }
+
+      _saveAutoClickerLocalState();
+      onAutoClickerUpdate?.call();
+    });
+
     _currentUser = _currentUser!.copyWith(autoClickerActive: true);
     onUserUpdate?.call(_currentUser!);
   }
@@ -495,11 +542,15 @@ class GameService {
   void stopAutoClicker() {
     _autoClickerTimer?.cancel();
     _autoClickerTimer = null;
+    _dailyFreeTimer?.cancel();
+    _dailyFreeTimer = null;
 
     if (_currentUser != null) {
       _currentUser = _currentUser!.copyWith(autoClickerActive: false);
       onUserUpdate?.call(_currentUser!);
     }
+    onAutoClickerUpdate?.call();
+    _saveAutoClickerLocalState();
   }
 
   /// Skip cooldown with AC
@@ -520,7 +571,6 @@ class GameService {
       missionCooldownEnd: null,
     );
 
-    _isDirty = true;
     await _syncToFirestore();
     onUserUpdate?.call(_currentUser!);
 
@@ -547,8 +597,6 @@ class GameService {
       energy: newEnergy,
       lastEnergyUpdate: DateTime.now(),
     );
-
-    _isDirty = true;
     await _syncToFirestore();
     onUserUpdate?.call(_currentUser!);
 
@@ -573,31 +621,21 @@ class GameService {
     }
   }
 
-  /// Ad-Value Exchange: Auto-Clicker Boost (Watch Ad = 2 Mins)
+  /// Ad-Value Exchange: Auto-Clicker Boost (Watch Ad = 10 Mins)
   Future<void> activateBoostByWatchingAd() async {
     if (isPenaltyActive) return;
 
     final result = await AdService().showRewardedAd();
     if (result.isSuccess) {
-      _boostRemaining = _boostRemaining + const Duration(minutes: 2);
-      _startBoostTimer();
-      startAutoClicker();
-    }
-  }
+      _adBoostSecondsRemaining += 600; // 10 minutes
+      _saveAutoClickerLocalState();
+      onAutoClickerUpdate?.call();
 
-  void _startBoostTimer() {
-    _boostTimer?.cancel();
-    _boostTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_boostRemaining.inSeconds > 0) {
-        _boostRemaining -= const Duration(seconds: 1);
-        notifyListenersOrUpdateUI();
-      } else {
-        _boostTimer?.cancel();
-        if (!(_currentUser?.hasPremiumAutoClicker ?? false)) {
-          stopAutoClicker();
-        }
+      // Auto-start if mission is active
+      if (_activeMission != null) {
+        startAutoClicker();
       }
-    });
+    }
   }
 
   /// Force sync via SyncService
@@ -617,8 +655,6 @@ class GameService {
     if (_currentUser == null) return;
 
     _currentUser = _currentUser!.copyWith(missionCooldownEnd: null);
-
-    _isDirty = true;
     _syncToFirestore();
     onUserUpdate?.call(_currentUser!);
   }
@@ -633,7 +669,6 @@ class GameService {
       missionCooldownEnd: null,
     );
 
-    _isDirty = true;
     _syncToFirestore();
     onUserUpdate?.call(_currentUser!);
   }
@@ -643,8 +678,6 @@ class GameService {
     if (_currentUser == null) return;
 
     _currentUser = _currentUser!.copyWith(upiId: upiId);
-
-    _isDirty = true;
     await _syncToFirestore();
     onUserUpdate?.call(_currentUser!);
   }
@@ -677,6 +710,7 @@ class GameService {
           'amount': amount,
           'upiId': upiId,
           'idToken': token,
+          'deviceId': _currentUser!.deviceId,
         }),
       );
 

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 
 /// Optimized Sync Service for Firestore Free Tier
@@ -23,12 +24,10 @@ class SyncService {
 
   // Sync configuration
   static const Duration _syncInterval = Duration(minutes: 10);
-  static const int _maxOfflineQueueSize = 100;
 
   Timer? _syncTimer;
   bool _isSyncing = false;
   DateTime? _lastSyncTime;
-  List<Map<String, dynamic>> _offlineQueue = [];
 
   // Local state tracking
   int _pendingTaps = 0;
@@ -40,11 +39,13 @@ class SyncService {
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
   int get pendingChanges => _pendingTaps + _pendingCoins;
+  int get pendingTaps => _pendingTaps;
+  int get pendingCoins => _pendingCoins;
 
   /// Initialize sync service
   Future<void> initialize(UserModel user) async {
     // Load cached state
-    await _loadOfflineQueue();
+    await loadCachedPending();
 
     // Start sync timer
     _startSyncTimer(user);
@@ -55,8 +56,8 @@ class SyncService {
           results.isNotEmpty && !results.contains(ConnectivityResult.none);
       onConnectivityChange?.call(isOnline);
 
-      if (isOnline && _offlineQueue.isNotEmpty) {
-        _processOfflineQueue(user);
+      if (isOnline && (_pendingTaps > 0 || _pendingCoins > 0)) {
+        _performSync(user);
       }
     });
   }
@@ -70,9 +71,16 @@ class SyncService {
   }
 
   /// Register optimistic tap update
-  void registerTap({int coins = 1}) {
-    _pendingTaps++;
+  void registerTap({int taps = 0, int coins = 0}) {
+    _pendingTaps += taps;
     _pendingCoins += coins;
+    _saveCachedPending();
+  }
+
+  Future<void> _saveCachedPending() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('pendingTaps', _pendingTaps);
+    await prefs.setInt('pendingCoins', _pendingCoins);
   }
 
   /// Perform sync to backend
@@ -87,24 +95,36 @@ class SyncService {
       // Check connectivity
       final connectivityResult = await Connectivity().checkConnectivity();
       if (connectivityResult.contains(ConnectivityResult.none)) {
-        _queueOfflineSync(user);
         return SyncResult(success: false, error: 'No internet connection');
       }
 
       // Prepare sync data
+      final idToken = await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (idToken == null) {
+        return SyncResult(
+          success: false,
+          error: 'Session expired. Please log in again to save your progress.',
+        );
+      }
+
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final newTotalTaps = user.totalTaps + _pendingTaps;
-      final newTotalCoins = user.appCoins + _pendingCoins;
+      final newTotalTaps = user.totalTaps;
+      final newTotalCoins = user.appCoins;
 
       final syncData = {
         'userId': user.uid,
+        'idToken': idToken,
         'totalTaps': newTotalTaps,
         'appCoins': newTotalCoins,
         'energy': user.getCurrentEnergy(),
         'missionsCompleted': user.missionsCompleted,
+        'completedMissions': user.completedMissions.map(
+          (key, value) => MapEntry(key, value.toIso8601String()),
+        ),
         'upiId': user.upiId,
         'hapticSetting': user.hapticSetting,
         'autoClickerActive': user.autoClickerActive,
+        'deviceId': user.deviceId,
         'clientTimestamp': timestamp,
         'checksum': _generateChecksum(
           user.uid,
@@ -136,24 +156,13 @@ class SyncService {
 
         onSyncComplete?.call(true, null);
         return SyncResult(success: true);
-      } else if (response.statusCode == 429) {
-        // Rate limited
-        final data = jsonDecode(response.body);
-        return SyncResult(
-          success: false,
-          error: 'Rate limited',
-          retryAfter: Duration(milliseconds: data['retryAfter'] ?? 60000),
-        );
       } else {
-        // Other error - queue for retry
-        _queueOfflineSync(user);
         return SyncResult(
           success: false,
           error: 'Connection unstable. We\'ll try syncing again in a moment!',
         );
       }
     } catch (e) {
-      _queueOfflineSync(user);
       return SyncResult(
         success: false,
         error:
@@ -169,44 +178,6 @@ class SyncService {
     return await _performSync(user);
   }
 
-  /// Queue sync for offline processing
-  void _queueOfflineSync(UserModel user) {
-    if (_offlineQueue.length >= _maxOfflineQueueSize) {
-      _offlineQueue.removeAt(0); // Remove oldest
-    }
-
-    _offlineQueue.add({
-      'userId': user.uid,
-      'pendingTaps': _pendingTaps,
-      'pendingCoins': _pendingCoins,
-      'timestamp': DateTime.now().millisecondsSinceEpoch,
-    });
-
-    _saveOfflineQueue();
-  }
-
-  /// Process offline queue when back online
-  Future<void> _processOfflineQueue(UserModel user) async {
-    if (_offlineQueue.isEmpty) return;
-
-    // Aggregate all offline changes
-    int totalTaps = 0;
-    int totalCoins = 0;
-
-    for (final item in _offlineQueue) {
-      totalTaps += item['pendingTaps'] as int;
-      totalCoins += item['pendingCoins'] as int;
-    }
-
-    // Add to pending and sync
-    _pendingTaps += totalTaps;
-    _pendingCoins += totalCoins;
-    _offlineQueue.clear();
-
-    await _saveOfflineQueue();
-    await _performSync(user);
-  }
-
   /// Generate checksum for anti-tamper
   String _generateChecksum(String userId, int taps, int coins, int timestamp) {
     final data = '$userId:$taps:$coins:$timestamp';
@@ -219,23 +190,17 @@ class SyncService {
     return hash.toRadixString(36);
   }
 
-  /// Save offline queue to local storage
-  Future<void> _saveOfflineQueue() async {
+  /// Load cached pending state
+  Future<void> loadCachedPending() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('offlineQueue', jsonEncode(_offlineQueue));
-  }
-
-  /// Load offline queue from local storage
-  Future<void> _loadOfflineQueue() async {
-    final prefs = await SharedPreferences.getInstance();
-    final queueJson = prefs.getString('offlineQueue');
-    if (queueJson != null) {
-      _offlineQueue = List<Map<String, dynamic>>.from(jsonDecode(queueJson));
-    }
+    _pendingTaps = prefs.getInt('pendingTaps') ?? 0;
+    _pendingCoins = prefs.getInt('pendingCoins') ?? 0;
   }
 
   /// Clear cached pending state
   Future<void> _clearCachedPending() async {
+    _pendingTaps = 0;
+    _pendingCoins = 0;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('pendingTaps');
     await prefs.remove('pendingCoins');
@@ -244,7 +209,6 @@ class SyncService {
   /// Dispose sync service
   void dispose() {
     _syncTimer?.cancel();
-    _saveOfflineQueue();
   }
 }
 

@@ -30,22 +30,24 @@ class NeumorphicContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      padding: padding,
-      decoration: isConvex
-          ? NeumorphicDecoration.convex(borderRadius: borderRadius)
-          : isPressed
-          ? NeumorphicDecoration.flat(
-              borderRadius: borderRadius,
-              isPressed: true,
-            )
-          : NeumorphicDecoration.flat(
-              color: color ?? AppTheme.surface,
-              borderRadius: borderRadius,
-            ),
-      child: child,
+    return RepaintBoundary(
+      child: Container(
+        width: width,
+        height: height,
+        padding: padding,
+        decoration: isConvex
+            ? NeumorphicDecoration.convex(borderRadius: borderRadius)
+            : isPressed
+            ? NeumorphicDecoration.flat(
+                borderRadius: borderRadius,
+                isPressed: true,
+              )
+            : NeumorphicDecoration.flat(
+                color: color ?? AppTheme.surface,
+                borderRadius: borderRadius,
+              ),
+        child: child,
+      ),
     );
   }
 }
@@ -119,52 +121,39 @@ class _NeumorphicButtonState extends State<NeumorphicButton>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: _handleTapDown,
-      onTapUp: _handleTapUp,
-      onTapCancel: _handleTapCancel,
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(scale: _scaleAnimation.value, child: child);
-        },
-        child: Container(
-          padding: widget.padding,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(widget.borderRadius),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: _isPressed
-                  ? [AppTheme.primaryDark, AppTheme.primary]
-                  : [AppTheme.primary, AppTheme.primaryDark],
-            ),
-            boxShadow: _isPressed
-                ? []
-                : [
-                    BoxShadow(
-                      color: AppTheme.primary.withValues(alpha: 0.4),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
-                    ),
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.3),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-          ),
-          child: Center(
-            child: widget.isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                    ),
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTapDown: _handleTapDown,
+        onTapUp: _handleTapUp,
+        onTapCancel: _handleTapCancel,
+        child: AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.scale(scale: _scaleAnimation.value, child: child);
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            padding: widget.padding,
+            decoration: _isPressed
+                ? NeumorphicDecoration.flat(
+                    borderRadius: widget.borderRadius,
+                    isPressed: true,
                   )
-                : widget.child,
+                : NeumorphicDecoration.convex(
+                    borderRadius: widget.borderRadius,
+                  ),
+            child: Center(
+              child: widget.isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : widget.child,
+            ),
           ),
         ),
       ),
@@ -245,15 +234,17 @@ class NeumorphicCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: margin,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: padding,
-          decoration: NeumorphicDecoration.flat(
-            borderRadius: borderRadius,
-            color: color ?? AppTheme.surface,
+      child: RepaintBoundary(
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: padding,
+            decoration: NeumorphicDecoration.flat(
+              borderRadius: borderRadius,
+              color: color ?? AppTheme.surface,
+            ),
+            child: child,
           ),
-          child: child,
         ),
       ),
     );
@@ -284,25 +275,30 @@ class _NeumorphicIconButtonState extends State<NeumorphicIconButton> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
-        setState(() => _isPressed = false);
-        widget.onPressed?.call();
-        HapticFeedback.lightImpact();
-      },
-      onTapCancel: () => setState(() => _isPressed = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 100),
-        width: widget.size,
-        height: widget.size,
-        decoration: _isPressed
-            ? NeumorphicDecoration.concave(borderRadius: widget.size / 2)
-            : NeumorphicDecoration.convex(borderRadius: widget.size / 2),
-        child: Icon(
-          widget.icon,
-          color: widget.iconColor ?? Colors.white70,
-          size: widget.size * 0.5,
+    return RepaintBoundary(
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _isPressed = true),
+        onTapUp: (_) {
+          setState(() => _isPressed = false);
+          widget.onPressed?.call();
+          HapticFeedback.lightImpact();
+        },
+        onTapCancel: () => setState(() => _isPressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 100),
+          width: widget.size,
+          height: widget.size,
+          decoration: _isPressed
+              ? NeumorphicDecoration.flat(
+                  borderRadius: widget.size / 2,
+                  isPressed: true,
+                )
+              : NeumorphicDecoration.convex(borderRadius: widget.size / 2),
+          child: Icon(
+            widget.icon,
+            color: widget.iconColor ?? Colors.white70,
+            size: widget.size * 0.5,
+          ),
         ),
       ),
     );
@@ -341,19 +337,26 @@ class NeumorphicProgressBar extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [
                   progressColor ?? AppTheme.primary,
-                  (progressColor ?? AppTheme.primary).withValues(alpha: 0.7),
+                  (progressColor ?? AppTheme.primary).withValues(alpha: 0.8),
                 ],
               ),
               borderRadius: BorderRadius.circular(borderRadius),
               boxShadow: [
                 BoxShadow(
                   color: (progressColor ?? AppTheme.primary).withValues(
-                    alpha: 0.5,
+                    alpha: 0.3,
                   ),
-                  blurRadius: 8,
+                  blurRadius: 4,
                   offset: const Offset(0, 2),
+                ),
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, -1),
                 ),
               ],
             ),
@@ -621,7 +624,7 @@ class RefillButton extends StatelessWidget {
                   children: [
                     Icon(Icons.flash_on, color: AppTheme.error, size: 14),
                     SizedBox(width: 4),
-                    const Text(
+                    Text(
                       'REFILL',
                       style: TextStyle(
                         color: AppTheme.error,

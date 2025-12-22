@@ -35,6 +35,8 @@ class UserModel {
   final DateTime? autoClickerRentalExpiry;
   final String autoClickerTier; // 'free', 'bronze', 'silver', 'gold'
 
+  final Map<String, DateTime> completedMissions;
+  final String? deviceId;
   final DateTime? missionCooldownEnd;
   final DateTime? adCooldownEnd;
   final String hapticSetting; // 'strong', 'eco', 'off'
@@ -54,6 +56,7 @@ class UserModel {
     this.daysActive = 1,
     this.unlockedTiers = const ['tier1'],
     this.activePasses = const {},
+    this.completedMissions = const {},
     this.upiId,
     this.panVerified = false,
     required this.createdAt,
@@ -69,10 +72,15 @@ class UserModel {
     this.missionCooldownEnd,
     this.adCooldownEnd,
     this.hapticSetting = 'eco',
+    this.deviceId,
   });
 
   /// Create new user with defaults
-  factory UserModel.newUser({required String uid, required String email}) {
+  factory UserModel.newUser({
+    required String uid,
+    required String email,
+    String? deviceId,
+  }) {
     final now = DateTime.now();
     return UserModel(
       uid: uid,
@@ -82,6 +90,7 @@ class UserModel {
       createdAt: now,
       lastSyncAt: now,
       referralCode: uid.substring(0, 6).toUpperCase(),
+      deviceId: deviceId,
     );
   }
 
@@ -104,6 +113,11 @@ class UserModel {
       daysActive: data['daysActive'] ?? 1,
       unlockedTiers: List<String>.from(data['unlockedTiers'] ?? ['tier1']),
       activePasses: Map<String, dynamic>.from(data['activePasses'] ?? {}),
+      completedMissions:
+          (data['completedMissions'] as Map<String, dynamic>?)?.map(
+            (key, value) => MapEntry(key, (value as Timestamp).toDate()),
+          ) ??
+          {},
       upiId: data['upiId'],
       panVerified: data['panVerified'] ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -122,6 +136,7 @@ class UserModel {
       referralCount: data['referralCount'] ?? 0,
       lastWithdrawalDate: (data['lastWithdrawalDate'] as Timestamp?)?.toDate(),
       hapticSetting: data['hapticSetting'] ?? 'eco',
+      deviceId: data['deviceId'],
     );
   }
 
@@ -143,6 +158,9 @@ class UserModel {
       'daysActive': daysActive,
       'unlockedTiers': unlockedTiers,
       'activePasses': activePasses,
+      'completedMissions': completedMissions.map(
+        (key, value) => MapEntry(key, Timestamp.fromDate(value)),
+      ),
       'upiId': upiId,
       'panVerified': panVerified,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -166,6 +184,7 @@ class UserModel {
           ? Timestamp.fromDate(lastWithdrawalDate!)
           : null,
       'hapticSetting': hapticSetting,
+      'deviceId': deviceId,
     };
   }
 
@@ -183,6 +202,7 @@ class UserModel {
     int? daysActive,
     List<String>? unlockedTiers,
     Map<String, dynamic>? activePasses,
+    Map<String, DateTime>? completedMissions,
     String? upiId,
     bool? panVerified,
     DateTime? lastSyncAt,
@@ -197,6 +217,7 @@ class UserModel {
     int? referralCount,
     DateTime? lastWithdrawalDate,
     String? hapticSetting,
+    String? deviceId,
   }) {
     return UserModel(
       uid: uid,
@@ -213,6 +234,7 @@ class UserModel {
       daysActive: daysActive ?? this.daysActive,
       unlockedTiers: unlockedTiers ?? this.unlockedTiers,
       activePasses: activePasses ?? this.activePasses,
+      completedMissions: completedMissions ?? this.completedMissions,
       upiId: upiId ?? this.upiId,
       panVerified: panVerified ?? this.panVerified,
       createdAt: createdAt,
@@ -229,6 +251,7 @@ class UserModel {
       referralCount: referralCount ?? this.referralCount,
       lastWithdrawalDate: lastWithdrawalDate ?? this.lastWithdrawalDate,
       hapticSetting: hapticSetting ?? this.hapticSetting,
+      deviceId: deviceId ?? this.deviceId,
     );
   }
 
@@ -284,5 +307,15 @@ class UserModel {
       if (daysSinceLast < 15) return false;
     }
     return true;
+  }
+
+  /// Check if a specific mission is on 30-day cooldown
+  bool isMissionOnCooldown(String missionId) {
+    if (!completedMissions.containsKey(missionId)) return false;
+    final completionDate = completedMissions[missionId]!;
+    final daysSinceCompletion = DateTime.now()
+        .difference(completionDate)
+        .inDays;
+    return daysSinceCompletion < 30;
   }
 }

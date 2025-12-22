@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 import 'core/services/auth_service.dart';
 import 'core/services/game_service.dart';
@@ -15,6 +16,10 @@ import 'ui/screens/mission_screen.dart';
 import 'ui/screens/profile_screen.dart';
 import 'ui/screens/autoclicker_screen.dart';
 import 'ui/screens/leaderboard_screen.dart';
+import 'ui/screens/withdrawal_screen.dart';
+import 'ui/screens/referral_screen.dart';
+import 'ui/screens/settings_screen.dart';
+import 'ui/screens/help_screen.dart';
 import 'core/services/notification_service.dart';
 
 void main() async {
@@ -62,11 +67,60 @@ class TapMineApp extends StatelessWidget {
         title: 'TapMine',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const AppNavigator(),
+        home: const NetworkAwareWidget(child: AppNavigator()),
       ),
     );
   }
 }
+
+class NetworkAwareWidget extends StatelessWidget {
+  final Widget child;
+  const NetworkAwareWidget({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<ConnectivityResult>>(
+      stream: Connectivity().onConnectivityChanged,
+      builder: (context, snapshot) {
+        final results = snapshot.data;
+        final isOffline =
+            results != null &&
+            results.isNotEmpty &&
+            results.contains(ConnectivityResult.none) &&
+            results.length == 1;
+
+        if (isOffline) {
+          return const Scaffold(
+            backgroundColor: Colors.black,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off, size: 64, color: Colors.white54),
+                  SizedBox(height: 16),
+                  Text(
+                    'No Internet Connection',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Please reconnect to continue mining.',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return child;
+      },
+    );
+  }
+} // End of NetworkAwareWidget
 
 /// Main navigation controller
 class AppNavigator extends StatefulWidget {
@@ -90,6 +144,64 @@ class _AppNavigatorState extends State<AppNavigator> {
     AppScreen.autoClicker,
     AppScreen.profile,
   ];
+
+  Widget _buildNavItem(IconData icon, String label, AppScreen screen) {
+    final isActive = _currentScreen == screen;
+    return GestureDetector(
+      onTap: () => _navigateTo(screen),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: isActive
+                ? NeumorphicDecoration.flat(
+                    borderRadius: 25,
+                    isPressed: true,
+                  ).copyWith(
+                    border: Border.all(
+                      color: AppTheme.primary.withValues(alpha: 0.2),
+                      width: 1.5,
+                    ),
+                  )
+                : null,
+            child: Icon(
+              icon,
+              color: isActive ? AppTheme.primary : Colors.white38,
+              size: 22,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: isActive ? AppTheme.primary : Colors.white38,
+              fontSize: 10,
+              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      decoration: NeumorphicDecoration.flat(borderRadius: 30),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildNavItem(Icons.home, 'Home', AppScreen.home),
+          _buildNavItem(Icons.flag, 'Missions', AppScreen.missions),
+          _buildNavItem(Icons.smart_toy, 'Auto', AppScreen.autoClicker),
+          _buildNavItem(Icons.leaderboard, 'Rank', AppScreen.leaderboard),
+          _buildNavItem(Icons.person, 'Profile', AppScreen.profile),
+        ],
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -241,6 +353,7 @@ class _AppNavigatorState extends State<AppNavigator> {
         physics: const BouncingScrollPhysics(),
         children: _gameScreens.map((screen) => _buildScreen(screen)).toList(),
       ),
+      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
@@ -254,6 +367,8 @@ class _AppNavigatorState extends State<AppNavigator> {
           onNavigateToProfile: () => _navigateTo(AppScreen.profile),
           onNavigateToAutoClicker: () => _navigateTo(AppScreen.autoClicker),
           onNavigateToLeaderboard: () => _navigateTo(AppScreen.leaderboard),
+          onNavigateToWithdrawal: () => _navigateTo(AppScreen.withdrawal),
+          onNavigateToReferral: () => _navigateTo(AppScreen.referral),
         );
       case AppScreen.missions:
         return MissionScreen(
@@ -268,6 +383,7 @@ class _AppNavigatorState extends State<AppNavigator> {
           gameService: _gameService,
           onBack: () => _navigateTo(AppScreen.home),
           onLogout: _onLogout,
+          onNavigateToSettings: () => _navigateTo(AppScreen.settings),
         );
       case AppScreen.autoClicker:
         return AutoClickerScreen(
@@ -281,6 +397,27 @@ class _AppNavigatorState extends State<AppNavigator> {
           gameService: _gameService,
           onBack: () => _navigateTo(AppScreen.home),
         );
+      case AppScreen.withdrawal:
+        return WithdrawalScreen(
+          user: _currentUser!,
+          gameService: _gameService,
+          onBack: () => _navigateTo(AppScreen.home),
+        );
+      case AppScreen.referral:
+        return ReferralScreen(
+          user: _currentUser!,
+          gameService: _gameService,
+          onBack: () => _navigateTo(AppScreen.home),
+        );
+      case AppScreen.settings:
+        return SettingsScreen(
+          user: _currentUser!,
+          gameService: _gameService,
+          onBack: () => _navigateTo(AppScreen.profile),
+          onNavigateToHelp: () => _navigateTo(AppScreen.help),
+        );
+      case AppScreen.help:
+        return HelpScreen(onBack: () => _navigateTo(AppScreen.settings));
       default:
         return const SizedBox.shrink();
     }
@@ -295,4 +432,8 @@ enum AppScreen {
   profile,
   autoClicker,
   leaderboard,
+  withdrawal,
+  referral,
+  settings,
+  help,
 }

@@ -11,6 +11,7 @@ class ProfileScreen extends StatefulWidget {
   final GameService gameService;
   final VoidCallback onBack;
   final VoidCallback onLogout;
+  final VoidCallback onNavigateToSettings;
 
   const ProfileScreen({
     super.key,
@@ -18,6 +19,7 @@ class ProfileScreen extends StatefulWidget {
     required this.gameService,
     required this.onBack,
     required this.onLogout,
+    required this.onNavigateToSettings,
   });
 
   @override
@@ -26,14 +28,11 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen>
     with TickerProviderStateMixin {
-  final _upiController = TextEditingController();
   late AnimationController _animController;
-  String _selectedLanguage = 'English';
 
   @override
   void initState() {
     super.initState();
-    _upiController.text = widget.user.upiId ?? '';
     _animController = AnimationController(
       duration: const Duration(milliseconds: 600),
       vsync: this,
@@ -53,219 +52,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     // Clear snackbars when leaving the screen
     ScaffoldMessenger.of(context).clearSnackBars();
 
-    _upiController.dispose();
     _animController.dispose();
     super.dispose();
-  }
-
-  void _showWithdrawDialog() {
-    if (!widget.user.canWithdraw) {
-      AppSnackBar.warning(
-        context,
-        'Need ${100000 - widget.user.appCoins} more AC to withdraw',
-      );
-      return;
-    }
-
-    // Check if UPI is set
-    if (widget.user.upiId == null || widget.user.upiId!.isEmpty) {
-      AppSnackBar.warning(context, 'Please add your UPI ID first');
-      _showEditUpiDialog();
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => _WithdrawDialog(
-        user: widget.user,
-        onConfirm: () async {
-          Navigator.pop(context);
-          await _processWithdrawal();
-        },
-      ),
-    );
-  }
-
-  Future<void> _processWithdrawal() async {
-    // Show processing dialog
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const _ProcessingDialog(),
-    );
-
-    // Process withdrawal via GameService
-    final success = await widget.gameService.requestWithdrawal(
-      amount: 100000,
-      upiId: widget.user.upiId!,
-    );
-
-    if (!mounted) return;
-    Navigator.of(context).pop(); // Close processing dialog
-
-    if (success) {
-      HapticFeedback.heavyImpact();
-      AppSnackBar.success(
-        context,
-        'Withdrawal request submitted! Processing in 7-10 days.',
-      );
-    } else {
-      AppSnackBar.error(context, 'Withdrawal failed. Please try again.');
-    }
-  }
-
-  void _showEditUpiDialog() {
-    final controller = TextEditingController(text: widget.user.upiId ?? '');
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: NeumorphicDecoration.convex(borderRadius: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Enter UPI ID',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Your earnings will be sent to this UPI ID',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-              const SizedBox(height: 24),
-              NeumorphicTextField(
-                controller: controller,
-                hintText: 'yourname@upi',
-                prefixIcon: Icons.account_balance,
-                keyboardType: TextInputType.text,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'CANCEL',
-                        style: TextStyle(color: Colors.white54),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: NeumorphicButton(
-                      onPressed: () async {
-                        final upi = controller.text.trim();
-                        if (upi.isEmpty || !upi.contains('@')) {
-                          AppSnackBar.error(
-                            context,
-                            'Please enter a valid UPI ID',
-                          );
-                          return;
-                        }
-
-                        Navigator.pop(context);
-                        await widget.gameService.updateUpiId(upi);
-                        if (!mounted) return;
-                        setState(() {});
-
-                        AppSnackBar.success(
-                          context,
-                          'UPI ID updated successfully',
-                        );
-                      },
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      child: const Text(
-                        'SAVE',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showLanguageDialog() {
-    final languages = ['English', 'हिंदी', 'தமிழ்', 'తెలుగు', 'ಕನ್ನಡ'];
-
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: NeumorphicDecoration.convex(borderRadius: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Select Language',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              ...languages.map(
-                (lang) => GestureDetector(
-                  onTap: () {
-                    setState(() => _selectedLanguage = lang);
-                    Navigator.pop(context);
-                    AppSnackBar.success(context, 'Language changed to $lang');
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    margin: const EdgeInsets.only(bottom: 8),
-                    decoration: BoxDecoration(
-                      color: _selectedLanguage == lang
-                          ? AppTheme.primary.withOpacity(0.2)
-                          : AppTheme.surfaceDark,
-                      borderRadius: BorderRadius.circular(12),
-                      border: _selectedLanguage == lang
-                          ? Border.all(color: AppTheme.primary, width: 2)
-                          : null,
-                    ),
-                    child: Center(
-                      child: Text(
-                        lang,
-                        style: TextStyle(
-                          color: _selectedLanguage == lang
-                              ? AppTheme.primary
-                              : Colors.white,
-                          fontWeight: _selectedLanguage == lang
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   @override
@@ -281,8 +69,6 @@ class _ProfileScreenState extends State<ProfileScreen>
               _buildProfileCard(),
               _buildStatsGrid(),
               _buildReferralSection(),
-              _buildWithdrawSection(),
-              _buildAccountSettings(),
               _buildLogoutButton(),
               const SizedBox(height: 40),
             ],
@@ -302,14 +88,20 @@ class _ProfileScreenState extends State<ProfileScreen>
             onPressed: widget.onBack,
           ),
           const SizedBox(width: 16),
-          const Text(
-            'PROFILE',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 3,
+          const Expanded(
+            child: Text(
+              'PROFILE',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 3,
+              ),
             ),
+          ),
+          NeumorphicIconButton(
+            icon: Icons.settings,
+            onPressed: widget.onNavigateToSettings,
           ),
         ],
       ),
@@ -439,15 +231,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             children: [
               Expanded(
                 child: _buildStatCard(
-                  icon: Icons.play_circle_filled,
-                  value: '${widget.user.totalAdsWatched}',
-                  label: 'Ads Watched',
-                  color: AppTheme.accent,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildStatCard(
                   icon: Icons.calendar_today,
                   value: '${widget.user.daysActive}',
                   label: 'Days Active',
@@ -513,194 +296,6 @@ class _ProfileScreenState extends State<ProfileScreen>
             style: const TextStyle(color: Colors.white54, fontSize: 11),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildWithdrawSection() {
-    final progress = widget.user.appCoins / 100000;
-    final canWithdraw = widget.user.canWithdraw;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: NeumorphicCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Withdrawal',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-                Text(
-                  '₹${widget.user.withdrawableAmountInr.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    color: AppTheme.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            // Progress bar
-            NeumorphicProgressBar(value: progress.clamp(0.0, 1.0), height: 12),
-
-            const SizedBox(height: 8),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      '${widget.user.appCoins} / 100,000 ',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Image.asset('assets/AppCoin.png', width: 12, height: 12),
-                    const Text(
-                      ' AC',
-                      style: TextStyle(color: Colors.white54, fontSize: 12),
-                    ),
-                  ],
-                ),
-                Text(
-                  canWithdraw
-                      ? 'Ready!'
-                      : '${(progress * 100).toStringAsFixed(1)}%',
-                  style: TextStyle(
-                    color: canWithdraw ? AppTheme.success : Colors.white54,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 16),
-
-            NeumorphicButton(
-              onPressed: _showWithdrawDialog,
-              backgroundColor: canWithdraw ? null : AppTheme.surface,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    canWithdraw ? Icons.account_balance_wallet : Icons.lock,
-                    color: canWithdraw ? Colors.black : Colors.white38,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    canWithdraw ? 'WITHDRAW ₹100' : 'MIN ₹100 REQUIRED',
-                    style: TextStyle(
-                      color: canWithdraw ? Colors.black : Colors.white38,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAccountSettings() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: NeumorphicCard(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Account Settings',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // UPI ID
-            _buildSettingItem(
-              icon: Icons.account_balance,
-              title: 'UPI ID',
-              value: widget.user.upiId ?? 'Not set',
-              onTap: _showEditUpiDialog,
-            ),
-
-            const Divider(color: Colors.white12),
-
-            // Language
-            _buildSettingItem(
-              icon: Icons.language,
-              title: 'Language',
-              value: _selectedLanguage,
-              onTap: _showLanguageDialog,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingItem({
-    required IconData icon,
-    required String title,
-    required String value,
-    Color? valueColor,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white54, size: 22),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      color: valueColor ?? Colors.white54,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: Colors.white38),
-          ],
-        ),
       ),
     );
   }
@@ -972,144 +567,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 }
 
-/// Withdraw Dialog
-class _WithdrawDialog extends StatelessWidget {
-  final UserModel user;
-  final VoidCallback onConfirm;
-
-  const _WithdrawDialog({required this.user, required this.onConfirm});
-
-  @override
-  Widget build(BuildContext context) {
-    const withdrawAmount = 100000; // Minimum withdrawal
-    const fee = 2000; // Transaction fee
-    const netAmount = withdrawAmount - fee;
-
-    return Dialog(
-      backgroundColor: Colors.transparent,
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: NeumorphicDecoration.convex(borderRadius: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.account_balance_wallet,
-              color: AppTheme.primary,
-              size: 48,
-            ),
-
-            const SizedBox(height: 16),
-
-            const Text(
-              'Confirm Withdrawal',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            _buildRow('Amount', '$withdrawAmount AC', '₹100'),
-            _buildRow('Transaction Fee', '-$fee AC', '-₹2'),
-            const Divider(color: Colors.white24, height: 24),
-            _buildRow(
-              'You Receive',
-              '',
-              '₹${(netAmount / 1000).toStringAsFixed(0)}',
-              isTotal: true,
-            ),
-
-            const SizedBox(height: 8),
-
-            Text(
-              'Processing time: 7-10 business days',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 12,
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'CANCEL',
-                      style: TextStyle(color: Colors.white54),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: NeumorphicButton(
-                    onPressed: onConfirm,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    child: const Text(
-                      'CONFIRM',
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRow(
-    String label,
-    String ac,
-    String inr, {
-    bool isTotal = false,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: isTotal ? Colors.white : Colors.white70,
-              fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-          Row(
-            children: [
-              if (ac.isNotEmpty)
-                Text(
-                  ac,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              if (ac.isNotEmpty) const SizedBox(width: 8),
-              Text(
-                inr,
-                style: TextStyle(
-                  color: isTotal ? AppTheme.primary : Colors.white,
-                  fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-                  fontSize: isTotal ? 18 : 14,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Processing Dialog
 class _ProcessingDialog extends StatelessWidget {
   const _ProcessingDialog();
 
@@ -1123,25 +580,16 @@ class _ProcessingDialog extends StatelessWidget {
         child: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SizedBox(
-              width: 48,
-              height: 48,
-              child: CircularProgressIndicator(
-                color: AppTheme.primary,
-                strokeWidth: 3,
-              ),
-            ),
+            CircularProgressIndicator(color: AppTheme.primary),
             SizedBox(height: 24),
             Text(
               'Processing...',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 18,
                 fontWeight: FontWeight.bold,
+                fontSize: 16,
               ),
             ),
-            SizedBox(height: 8),
-            Text('Please wait', style: TextStyle(color: Colors.white54)),
           ],
         ),
       ),

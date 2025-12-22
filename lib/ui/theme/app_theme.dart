@@ -18,8 +18,11 @@ class AppTheme {
   static const Color warning = Color(0xFFFFAB00);
 
   // Neumorphic shadow colors
-  static Color get neumorphicDark => Colors.black.withValues(alpha: 0.35);
-  static Color get neumorphicLight => Colors.white.withValues(alpha: 0.12);
+  // Neumorphic shadow colors - Optimized for Dark Mode (#252530 surface)
+  static Color get neumorphicDark => Colors.black.withValues(alpha: 0.45);
+  static Color get neumorphicLight => Colors.white.withValues(alpha: 0.05);
+  static Color get shadowHigh => Colors.black.withValues(alpha: 0.6);
+  static Color get highlightHigh => Colors.white.withValues(alpha: 0.08);
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -59,9 +62,9 @@ class AppTheme {
           bodyLarge: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w500,
-            color: Colors.white70,
+            color: Colors.white,
           ),
-          bodyMedium: const TextStyle(fontSize: 14, color: Colors.white60),
+          bodyMedium: const TextStyle(fontSize: 14, color: Colors.white70),
         ),
       ),
       cardTheme: CardThemeData(
@@ -145,70 +148,77 @@ class AppTheme {
   }
 }
 
-/// Neumorphic Container decoration helper
+/// Neumorphic Decoration System
 class NeumorphicDecoration {
+  static const double defaultBlur = 12.0;
+  static const Offset defaultOffset = Offset(6, 6);
+
   static BoxDecoration flat({
     Color color = AppTheme.surface,
     double borderRadius = 20,
     bool isPressed = false,
   }) {
+    if (isPressed) {
+      return BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(borderRadius),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppTheme.surfaceDark.withValues(alpha: 0.8),
+            AppTheme.surface.withValues(alpha: 0.2),
+          ],
+        ),
+        border: Border.all(
+          color: Colors.black.withValues(alpha: 0.2),
+          width: 1,
+        ),
+      );
+    }
+
     return BoxDecoration(
       color: color,
       borderRadius: BorderRadius.circular(borderRadius),
-      boxShadow: isPressed
-          ? [
-              BoxShadow(
-                color: AppTheme.neumorphicDark,
-                offset: const Offset(2, 2),
-                blurRadius: 4,
-                spreadRadius: -1,
-              ),
-              BoxShadow(
-                color: AppTheme.neumorphicLight,
-                offset: const Offset(-1, -1),
-                blurRadius: 4,
-                spreadRadius: -1,
-              ),
-            ]
-          : [
-              BoxShadow(
-                color: AppTheme.neumorphicDark,
-                offset: const Offset(5, 5),
-                blurRadius: 12,
-              ),
-              BoxShadow(
-                color: AppTheme.neumorphicLight,
-                offset: const Offset(-5, -5),
-                blurRadius: 12,
-              ),
-            ],
+      boxShadow: [
+        BoxShadow(
+          color: AppTheme.neumorphicDark,
+          offset: defaultOffset,
+          blurRadius: defaultBlur,
+        ),
+        BoxShadow(
+          color: AppTheme.neumorphicLight,
+          offset: -defaultOffset,
+          blurRadius: defaultBlur,
+        ),
+      ],
     );
   }
 
   static BoxDecoration concave({
-    Color color = AppTheme.surfaceDark,
+    Color color = AppTheme.surface,
     double borderRadius = 20,
   }) {
     return BoxDecoration(
-      color: color,
       borderRadius: BorderRadius.circular(borderRadius),
-      gradient: const LinearGradient(
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [AppTheme.surfaceDark, AppTheme.surface],
+        colors: [
+          AppTheme.surfaceDark,
+          AppTheme.surfaceLight.withValues(alpha: 0.3),
+        ],
       ),
       boxShadow: [
         BoxShadow(
           color: AppTheme.neumorphicDark,
-          offset: const Offset(3, 3),
-          blurRadius: 6,
-          spreadRadius: -1,
+          offset: const Offset(4, 4),
+          blurRadius: 8,
         ),
         BoxShadow(
           color: AppTheme.neumorphicLight,
-          offset: const Offset(-2, -2),
-          blurRadius: 6,
-          spreadRadius: -1,
+          offset: const Offset(-4, -4),
+          blurRadius: 8,
         ),
       ],
     );
@@ -220,23 +230,35 @@ class NeumorphicDecoration {
   }) {
     return BoxDecoration(
       borderRadius: BorderRadius.circular(borderRadius),
-      gradient: const LinearGradient(
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [AppTheme.surfaceLight, AppTheme.surfaceDark],
+        colors: [
+          AppTheme.surfaceLight.withValues(alpha: 0.1),
+          AppTheme.surfaceDark.withValues(alpha: 0.3),
+        ],
       ),
       boxShadow: [
         BoxShadow(
           color: AppTheme.neumorphicDark,
-          offset: const Offset(5, 5),
-          blurRadius: 12,
+          offset: defaultOffset,
+          blurRadius: defaultBlur,
         ),
         BoxShadow(
           color: AppTheme.neumorphicLight,
-          offset: const Offset(-5, -5),
-          blurRadius: 12,
+          offset: -defaultOffset,
+          blurRadius: defaultBlur,
         ),
       ],
+    );
+  }
+
+  // Simplified decoration for cards in a list to improve performance
+  static BoxDecoration listCard({double borderRadius = 16}) {
+    return BoxDecoration(
+      color: AppTheme.surface,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.05), width: 1),
     );
   }
 }

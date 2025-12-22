@@ -1,11 +1,15 @@
+import 'dart:io';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import '../models/user_model.dart';
 
 /// Authentication service - Email/Password only, Firestore free tier optimized
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
 
   /// Current user stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -15,6 +19,25 @@ class AuthService {
 
   /// Check if user is logged in
   bool get isLoggedIn => _auth.currentUser != null;
+
+  /// Get unique device ID
+  Future<String?> _getDeviceId() async {
+    try {
+      if (Platform.isAndroid) {
+        final androidInfo = await _deviceInfo.androidInfo;
+        return androidInfo.id; // Unique ID on Android
+      } else if (Platform.isIOS) {
+        final iosInfo = await _deviceInfo.iosInfo;
+        return iosInfo.identifierForVendor; // Unique ID on iOS
+      } else if (Platform.isWindows) {
+        final windowsInfo = await _deviceInfo.windowsInfo;
+        return windowsInfo.deviceId; // Unique ID on Windows
+      }
+    } on PlatformException {
+      return null;
+    }
+    return null;
+  }
 
   /// Sign up with email and password
   Future<AuthResult> signUp({
@@ -40,6 +63,25 @@ class AuthService {
         );
       }
 
+      // Device Check
+      final deviceId = await _getDeviceId();
+      if (deviceId == null) {
+        return AuthResult.failure(
+          'Could not verify device. Please try again on a real device.',
+        );
+      }
+
+      // Check if device is already registered (Active Check)
+      final deviceDoc = await _firestore
+          .collection('devices')
+          .doc(deviceId)
+          .get();
+      if (deviceDoc.exists) {
+        return AuthResult.failure(
+          'This device is already associated with another account.',
+        );
+      }
+
       // Create user
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim().toLowerCase(),
@@ -50,16 +92,29 @@ class AuthService {
         return AuthResult.failure('Failed to create account');
       }
 
-      // Create user document in Firestore
+      // Create user document in Firestore and Link Device
       final userModel = UserModel.newUser(
         uid: credential.user!.uid,
         email: email.trim().toLowerCase(),
+        deviceId: deviceId,
       );
 
-      await _firestore
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set(userModel.toFirestore());
+      final batch = _firestore.batch();
+
+      // User Doc
+      batch.set(
+        _firestore.collection('users').doc(credential.user!.uid),
+        userModel.toFirestore(),
+      );
+
+      // Device Doc (claiming the device)
+      batch.set(_firestore.collection('devices').doc(deviceId), {
+        'uid': credential.user!.uid,
+        'email': email.trim().toLowerCase(),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      await batch.commit();
 
       return AuthResult.success(userModel);
     } on FirebaseAuthException catch (e) {
@@ -90,12 +145,38 @@ class AuthService {
           .doc(credential.user!.uid)
           .get();
 
+      final deviceId = await _getDeviceId();
+
       if (!doc.exists) {
-        // Create user doc if it doesn't exist (edge case)
+        // Create user doc if it doesn't exist (Legacy fix, but should enforce device)
+        if (deviceId == null) {
+          return AuthResult.failure('Device verification failed.');
+        }
+
+        // Check availability
+        final deviceCheck = await _firestore
+            .collection('devices')
+            .doc(deviceId)
+            .get();
+        if (deviceCheck.exists && deviceCheck['uid'] != credential.user!.uid) {
+          return AuthResult.failure(
+            'This device is linked to another account.',
+          );
+        }
+
         final userModel = UserModel.newUser(
           uid: credential.user!.uid,
           email: email.trim().toLowerCase(),
+          deviceId: deviceId,
         );
+
+        // Lock device
+        await _firestore.collection('devices').doc(deviceId).set({
+          'uid': credential.user!.uid,
+          'email': email.trim().toLowerCase(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
         await _firestore
             .collection('users')
             .doc(credential.user!.uid)
@@ -104,6 +185,38 @@ class AuthService {
       }
 
       final userModel = UserModel.fromFirestore(doc);
+
+      // Enforce Device Lock
+      if (deviceId != null) {
+        // 1. If user has a linked device, it MUST match
+        if (userModel.deviceId != null && userModel.deviceId != deviceId) {
+          return AuthResult.failure(
+            'Account Locked: You can only login from your registered device.',
+          );
+        }
+
+        // 2. If user has NO linked device (Legacy), verify this device is free
+        if (userModel.deviceId == null) {
+          final deviceDoc = await _firestore
+              .collection('devices')
+              .doc(deviceId)
+              .get();
+          if (deviceDoc.exists && deviceDoc['uid'] != userModel.uid) {
+            return AuthResult.failure(
+              'This device is already used by another player.',
+            );
+          }
+
+          // Link them now
+          await _firestore.collection('users').doc(userModel.uid).update({
+            'deviceId': deviceId,
+          });
+          await _firestore.collection('devices').doc(deviceId).set({
+            'uid': userModel.uid,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+      }
 
       // Update last login and streak (batch write to optimize)
       await _updateLoginStats(credential.user!.uid, userModel);

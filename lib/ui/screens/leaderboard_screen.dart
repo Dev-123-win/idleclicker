@@ -125,6 +125,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                   ? const Center(
                       child: CircularProgressIndicator(color: AppTheme.primary),
                     )
+                  : _currentLeaderboard.isEmpty
+                  ? _buildEmptyState()
                   : CustomScrollView(
                       physics: const BouncingScrollPhysics(),
                       slivers: [
@@ -215,7 +217,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         _animController.forward();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        constraints: const BoxConstraints(minWidth: 80, minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: isSelected
             ? BoxDecoration(
                 gradient: LinearGradient(
@@ -230,11 +233,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                 ],
               )
             : NeumorphicDecoration.flat(borderRadius: 20),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.black : Colors.white70,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.black : Colors.white70,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
         ),
       ),
@@ -323,28 +328,26 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
   }
 
   Widget _buildPodium() {
-    if (_currentLeaderboard.length < 3) return const SizedBox();
-
-    final top1 = _currentLeaderboard[0];
-    final top2 = _currentLeaderboard[1];
-    final top3 = _currentLeaderboard[2];
+    final top1 = _currentLeaderboard.isNotEmpty ? _currentLeaderboard[0] : null;
+    final top2 = _currentLeaderboard.length > 1 ? _currentLeaderboard[1] : null;
+    final top3 = _currentLeaderboard.length > 2 ? _currentLeaderboard[2] : null;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 30),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _buildPodiumPlace(top2, 2, 100, 0.8),
+          _buildPodiumPlace(top2, 2, 100, 0.85),
           _buildPodiumPlace(top1, 1, 130, 1.0),
-          _buildPodiumPlace(top3, 3, 80, 0.7),
+          _buildPodiumPlace(top3, 3, 80, 0.75),
         ],
       ),
     );
   }
 
   Widget _buildPodiumPlace(
-    LeaderboardEntry entry,
+    LeaderboardEntry? entry,
     int place,
     double height,
     double scale,
@@ -355,14 +358,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
         placeColor = AppTheme.primary;
         break;
       case 2:
-        placeColor = const Color(0xFFC0C0C0);
+        placeColor = const Color(0xFFE0E0E0); // Bright silver/silver
         break;
       case 3:
-        placeColor = const Color(0xFFCD7F32);
+        placeColor = const Color(0xFFCD7F32); // Bronze
         break;
       default:
-        placeColor = Colors.white;
+        placeColor = Colors.white24;
     }
+
+    final isVacant = entry == null;
 
     return AnimatedBuilder(
       animation: _animController,
@@ -376,34 +381,46 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
             opacity: animValue,
             child: Column(
               children: [
-                // Avatar with crown/rank
+                // Avatar/Placeholder
                 Stack(
                   alignment: Alignment.topCenter,
                   children: [
                     Container(
-                      width: 70 * scale,
-                      height: 70 * scale,
+                      width: 75 * scale,
+                      height: 75 * scale,
                       margin: const EdgeInsets.only(top: 15),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        border: Border.all(color: placeColor, width: 3),
-                        boxShadow: [
-                          BoxShadow(
-                            color: placeColor.withValues(alpha: 0.4),
-                            blurRadius: 15,
-                            spreadRadius: 2,
-                          ),
-                        ],
+                        border: Border.all(
+                          color: isVacant ? Colors.white10 : placeColor,
+                          width: 3,
+                        ),
+                        boxShadow: isVacant
+                            ? []
+                            : [
+                                BoxShadow(
+                                  color: placeColor.withValues(alpha: 0.3),
+                                  blurRadius: 15,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                        color: isVacant ? Colors.black26 : AppTheme.surfaceDark,
                       ),
                       child: Center(
-                        child: Text(
-                          entry.avatar,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24 * scale,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        child: isVacant
+                            ? Icon(
+                                Icons.person_add_alt_1,
+                                color: Colors.white10,
+                                size: 30 * scale,
+                              )
+                            : Text(
+                                entry.avatar,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 26 * scale,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
                     if (place == 1)
@@ -412,33 +429,56 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                         child: Icon(
                           Icons.emoji_events,
                           color: AppTheme.primary,
-                          size: 28,
+                          size: 30,
+                        ),
+                      )
+                    else if (place == 2)
+                      const Positioned(
+                        top: 2,
+                        child: Icon(
+                          Icons.workspace_premium,
+                          color: Color(0xFFE0E0E0),
+                          size: 24,
+                        ),
+                      )
+                    else if (place == 3)
+                      const Positioned(
+                        top: 4,
+                        child: Icon(
+                          Icons.military_tech,
+                          color: Color(0xFFCD7F32),
+                          size: 24,
                         ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  entry.username,
+                  isVacant ? 'VACANT' : entry.username,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: isVacant ? Colors.white24 : Colors.white,
                     fontWeight: FontWeight.bold,
-                    fontSize: 14 * scale,
+                    fontSize: 12 * scale,
+                    letterSpacing: isVacant ? 1 : 0,
                   ),
                 ),
                 const SizedBox(height: 8),
                 // Podium block
                 Container(
-                  width: 80 * scale,
+                  width: 85 * scale,
                   height: height,
                   decoration:
                       NeumorphicDecoration.convex(
-                        borderRadius: 12,
-                        color: AppTheme.surfaceDark,
+                        borderRadius: 16,
+                        color: isVacant
+                            ? AppTheme.surfaceDark
+                            : AppTheme.surface,
                       ).copyWith(
                         border: Border.all(
-                          color: placeColor.withValues(alpha: 0.3),
-                          width: 1,
+                          color: isVacant
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : placeColor.withValues(alpha: 0.2),
+                          width: 1.5,
                         ),
                       ),
                   child: Column(
@@ -447,18 +487,20 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
                       Text(
                         '#$place',
                         style: TextStyle(
-                          color: placeColor,
-                          fontSize: 24 * scale,
+                          color: isVacant ? Colors.white10 : placeColor,
+                          fontSize: 28 * scale,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      Text(
-                        _formatNumber(entry.coins),
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10 * scale,
+                      if (!isVacant)
+                        Text(
+                          _formatNumber(entry.coins),
+                          style: TextStyle(
+                            color: Colors.white60,
+                            fontSize: 11 * scale,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -467,6 +509,56 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(30),
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.leaderboard_outlined,
+              size: 80,
+              color: AppTheme.primary.withValues(alpha: 0.2),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'The Arena is Empty!',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'No miners have reached the top yet.\nBe the first to claim the throne!',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white54, fontSize: 14),
+          ),
+          const SizedBox(height: 32),
+          NeumorphicButton(
+            onPressed: widget.onBack,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+            child: const Text(
+              'START MINING',
+              style: TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -524,93 +616,102 @@ class _LeaderboardScreenState extends State<LeaderboardScreen>
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      child: NeumorphicCard(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Rank
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: getRankColor().withValues(alpha: 0.2),
-              ),
-              child: Center(
-                child: getRankIcon() != null
-                    ? Icon(getRankIcon(), color: getRankColor(), size: 20)
-                    : Text(
-                        '${entry.rank}',
-                        style: TextStyle(
-                          color: getRankColor(),
-                          fontWeight: FontWeight.bold,
+      child: RepaintBoundary(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: NeumorphicDecoration.listCard(),
+          child: Row(
+            children: [
+              // Rank
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: getRankColor().withValues(alpha: 0.2),
+                ),
+                child: Center(
+                  child: getRankIcon() != null
+                      ? Icon(getRankIcon(), color: getRankColor(), size: 20)
+                      : Text(
+                          '${entry.rank}',
+                          style: TextStyle(
+                            color: getRankColor(),
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-              ),
-            ),
-            const SizedBox(width: 16),
-            // Avatar
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppTheme.surfaceDark,
-              ),
-              child: Center(
-                child: Text(
-                  entry.avatar,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 16),
-            // Name and stats
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    entry.username,
+              const SizedBox(width: 16),
+              // Avatar
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppTheme.surfaceDark,
+                ),
+                child: Center(
+                  child: Text(
+                    entry.avatar,
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 18,
                     ),
                   ),
-                  Text(
-                    '${_formatNumber(entry.taps)} taps',
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                ],
+                ),
               ),
-            ),
-            // Coins
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppTheme.primary.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Image.asset('assets/AppCoin.png', width: 16, height: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    _formatNumber(entry.coins),
-                    style: const TextStyle(
-                      color: AppTheme.primary,
-                      fontWeight: FontWeight.bold,
+              const SizedBox(width: 16),
+              // Name and stats
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      entry.username,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
+                    Text(
+                      '${_formatNumber(entry.taps)} taps',
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              // Coins
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset('assets/AppCoin.png', width: 16, height: 16),
+                    const SizedBox(width: 4),
+                    Text(
+                      _formatNumber(entry.coins),
+                      style: const TextStyle(
+                        color: AppTheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
