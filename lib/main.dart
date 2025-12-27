@@ -4,51 +4,49 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
-import 'core/services/auth_service.dart';
-import 'core/services/game_service.dart';
-import 'core/services/ad_service.dart';
-import 'core/models/user_model.dart';
-import 'ui/theme/app_theme.dart';
-import 'ui/screens/splash_screen.dart';
-import 'ui/screens/login_screen.dart';
-import 'ui/screens/home_screen.dart';
-import 'ui/screens/mission_screen.dart';
-import 'ui/screens/profile_screen.dart';
-import 'ui/screens/autoclicker_screen.dart';
-import 'ui/screens/leaderboard_screen.dart';
-import 'ui/screens/withdrawal_screen.dart';
-import 'ui/screens/referral_screen.dart';
-import 'ui/screens/settings_screen.dart';
-import 'ui/screens/help_screen.dart';
-import 'core/services/notification_service.dart';
+import 'firebase_options.dart';
+import 'core/theme.dart';
+import 'core/constants.dart';
+import 'services/service_locator.dart';
+import 'services/game_service.dart';
+import 'services/ad_service.dart';
+import 'services/sync_service.dart';
+import 'services/auth_service.dart';
+
+import 'screens/splash_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/missions_screen.dart';
+import 'screens/referral_screen.dart';
+import 'screens/withdrawal_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/faq_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/register_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Lock orientation to portrait
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
-
-  // Hide status bar and navigation bar (Immersive Mode)
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-
-  // Set system UI overlay style
+  // Set system UI style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarColor: AppColors.background,
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
 
-  // Initialize Firebase
-  await Firebase.initializeApp();
+  // Lock orientation
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  // Initialize Notification Service
-  await NotificationService().initialize();
+  // Initialize Firebase
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Setup services
+  await setupServices();
+
+  // Initialize ads
+  await getService<AdService>().init();
 
   runApp(const TapMineApp());
 }
@@ -60,188 +58,173 @@ class TapMineApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        Provider<AuthService>(create: (_) => AuthService()),
-        ChangeNotifierProvider<GameService>(create: (_) => GameService()),
-        Provider<NotificationService>(create: (_) => NotificationService()),
-        ChangeNotifierProvider<AdService>(create: (_) => AdService()),
+        ChangeNotifierProvider(create: (_) => getService<GameService>()),
       ],
-
       child: MaterialApp(
-        title: 'TapMine',
+        title: AppConstants.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const NetworkAwareWidget(child: AppNavigator()),
+        home: const AppWrapper(),
+        routes: {
+          '/login': (context) => const LoginScreen(),
+          '/register': (context) => const RegisterScreen(),
+          '/home': (context) => const MainNavigation(),
+          '/faq': (context) => const FAQScreen(),
+          '/settings': (context) => const ProfileScreen(),
+        },
       ),
     );
   }
 }
 
-class NetworkAwareWidget extends StatelessWidget {
-  final Widget child;
-  const NetworkAwareWidget({super.key, required this.child});
+/// Wrapper to handle connectivity and initialization
+class AppWrapper extends StatefulWidget {
+  const AppWrapper({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<List<ConnectivityResult>>(
-      stream: Connectivity().onConnectivityChanged,
-      builder: (context, snapshot) {
-        final results = snapshot.data;
-        final isOffline =
-            results != null &&
-            results.isNotEmpty &&
-            results.contains(ConnectivityResult.none) &&
-            results.length == 1;
-
-        if (isOffline) {
-          return const Scaffold(
-            backgroundColor: Colors.black,
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.wifi_off, size: 64, color: Colors.white54),
-                  SizedBox(height: 16),
-                  Text(
-                    'No Internet Connection',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Please reconnect to continue mining.',
-                    style: TextStyle(color: Colors.white54),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-        return child;
-      },
-    );
-  }
-} // End of NetworkAwareWidget
-
-/// Main navigation controller
-class AppNavigator extends StatefulWidget {
-  const AppNavigator({super.key});
-
-  @override
-  State<AppNavigator> createState() => _AppNavigatorState();
+  State<AppWrapper> createState() => _AppWrapperState();
 }
 
-class _AppNavigatorState extends State<AppNavigator> {
-  AppScreen _currentScreen = AppScreen.splash;
-  UserModel? _currentUser;
-  late AuthService _authService;
-  late GameService _gameService;
-  late PageController _pageController;
-  Future<void>? _initializationFuture;
-  bool _isLoggedIn = false;
-
-  final List<AppScreen> _gameScreens = [
-    AppScreen.missions,
-    AppScreen.home,
-    AppScreen.leaderboard,
-    AppScreen.autoClicker,
-    AppScreen.profile,
-  ];
-
-  Widget _buildNavItem(IconData icon, String label, AppScreen screen) {
-    final isActive = _currentScreen == screen;
-    return GestureDetector(
-      onTap: () => _navigateTo(screen),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: isActive
-                ? NeumorphicDecoration.flat(
-                    borderRadius: 25,
-                    isPressed: true,
-                  ).copyWith(
-                    border: Border.all(
-                      color: AppTheme.primary.withValues(alpha: 0.2),
-                      width: 1.5,
-                    ),
-                  )
-                : null,
-            child: Icon(
-              icon,
-              color: isActive ? AppTheme.primary : Colors.white38,
-              size: 22,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isActive ? AppTheme.primary : Colors.white38,
-              fontSize: 10,
-              fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNav() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: NeumorphicDecoration.flat(borderRadius: 30),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildNavItem(Icons.home, 'Home', AppScreen.home),
-          _buildNavItem(Icons.flag, 'Missions', AppScreen.missions),
-          _buildNavItem(Icons.smart_toy, 'Auto', AppScreen.autoClicker),
-          _buildNavItem(Icons.leaderboard, 'Rank', AppScreen.leaderboard),
-          _buildNavItem(Icons.person, 'Profile', AppScreen.profile),
-        ],
-      ),
-    );
-  }
+class _AppWrapperState extends State<AppWrapper> {
+  bool _initialized = false;
+  bool _showSplash = true;
+  bool _isConnected = true;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: 1); // Home is index 1
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _authService = context.read<AuthService>();
-      _gameService = context.read<GameService>();
-      // Start initialization immediately and store the future
-      _initializationFuture = _runInitialization();
+    _checkConnectivity();
+    _initialize();
+  }
+
+  Future<void> _checkConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    setState(() {
+      _isConnected = result.any((r) => r != ConnectivityResult.none);
+    });
+
+    Connectivity().onConnectivityChanged.listen((results) {
+      setState(() {
+        _isConnected = results.any((r) => r != ConnectivityResult.none);
+      });
     });
   }
 
-  /// Runs all initialization logic during the splash screen
-  Future<void> _runInitialization() async {
-    _authService = context.read<AuthService>();
-    _gameService = context.read<GameService>();
+  Future<void> _initialize() async {
+    // Try to load user from local storage
+    final hasUser = await getService<GameService>().loadFromLocal();
 
-    if (_authService.isLoggedIn) {
-      final user = await _authService.getUserModel();
-      if (user != null) {
-        _currentUser = user;
-        _isLoggedIn = true;
-        _gameService.addListener(() {
-          if (mounted) {
-            setState(() {
-              _currentUser = _gameService.currentUser;
-            });
-          }
-        });
-        await _gameService.initialize(user);
-        return;
-      }
+    // Check if logged in
+    final isLoggedIn = getService<AuthService>().isLoggedIn;
+
+    setState(() {
+      _initialized = true;
+    });
+
+    // Start sync if logged in
+    if (isLoggedIn && hasUser) {
+      getService<SyncService>().startPeriodicSync();
     }
-    _isLoggedIn = false;
+  }
+
+  void _onSplashComplete() {
+    setState(() => _showSplash = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showSplash) {
+      return SplashScreen(onComplete: _onSplashComplete);
+    }
+
+    if (!_isConnected) {
+      return _NoConnectionScreen(onRetry: _checkConnectivity);
+    }
+
+    if (!_initialized) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(child: CircularProgressIndicator(color: AppColors.gold)),
+      );
+    }
+
+    final isLoggedIn = getService<AuthService>().isLoggedIn;
+
+    if (!isLoggedIn) {
+      return const LoginScreen();
+    }
+
+    return const MainNavigation();
+  }
+}
+
+/// No internet connection screen
+class _NoConnectionScreen extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _NoConnectionScreen({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimensions.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.wifi_off, size: 80, color: AppColors.textMuted),
+              const SizedBox(height: 24),
+              Text(
+                'No Internet Connection',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'TapMine requires internet to sync progress and show ads.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 32),
+              ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Main navigation with bottom nav bar and PageView
+class MainNavigation extends StatefulWidget {
+  const MainNavigation({super.key});
+
+  @override
+  State<MainNavigation> createState() => _MainNavigationState();
+}
+
+class _MainNavigationState extends State<MainNavigation> {
+  int _currentIndex = 0;
+  late PageController _pageController;
+
+  final List<Widget> _screens = [
+    const HomeScreen(),
+    const MissionsScreen(),
+    const ReferralScreen(),
+    const WithdrawalScreen(),
+    const ProfileScreen(),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+
+    // Show app open ad
+    getService<AdService>().showAppOpenAd();
   }
 
   @override
@@ -250,225 +233,76 @@ class _AppNavigatorState extends State<AppNavigator> {
     super.dispose();
   }
 
-  void _onSplashComplete() {
-    // Initialization already ran during splash, just navigate to correct screen
-    if (_isLoggedIn && _currentUser != null) {
-      setState(() => _currentScreen = AppScreen.home);
-    } else {
-      setState(() => _currentScreen = AppScreen.login);
-    }
-  }
-
-  void _onLoginSuccess() async {
-    _authService = context.read<AuthService>();
-    _gameService = context.read<GameService>();
-
-    final user = await _authService.getUserModel();
-    if (user != null) {
-      _gameService.addListener(() {
-        if (mounted) {
-          setState(() {
-            _currentUser = _gameService.currentUser;
-          });
-        }
-      });
-      setState(() {
-        _currentUser = user;
-        _currentScreen = AppScreen.home;
-      });
-      await _gameService.initialize(user);
-    }
-  }
-
-  void _onLogout() async {
-    await _authService.signOut();
-    _gameService.dispose();
-    _currentUser = null;
-    setState(() => _currentScreen = AppScreen.login);
-  }
-
-  void _navigateTo(AppScreen screen) {
-    if (_gameScreens.contains(screen)) {
-      final index = _gameScreens.indexOf(screen);
-      if (_currentScreen == screen) return;
-
-      setState(() => _currentScreen = screen);
-      if (_pageController.hasClients) {
-        _pageController.animateToPage(
-          index,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOutCubic,
-        );
-      }
-    } else {
-      setState(() => _currentScreen = screen);
-    }
-  }
-
   void _onPageChanged(int index) {
-    if (mounted) {
-      setState(() => _currentScreen = _gameScreens[index]);
+    setState(() => _currentIndex = index);
+
+    // Show interstitial on screen transition occasionally
+    if (index != 0 && index % 2 == 0) {
+      getService<AdService>().showInterstitialAd();
     }
   }
 
-  DateTime? _lastPressedAt;
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (bool didPop, dynamic result) {
-        if (didPop) return;
-
-        final now = DateTime.now();
-        final isWarningStep =
-            _lastPressedAt == null ||
-            now.difference(_lastPressedAt!) > const Duration(seconds: 2);
-
-        if (isWarningStep) {
-          _lastPressedAt = now;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Row(
-                children: [
-                  Icon(Icons.exit_to_app, color: Colors.white),
-                  SizedBox(width: 12),
-                  Text(
-                    'Press back again to exit',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-              backgroundColor: AppTheme.accent.withValues(alpha: 0.9),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              margin: const EdgeInsets.all(16),
-            ),
-          );
-        } else {
-          SystemNavigator.pop();
-        }
-      },
-      child: _buildMainContent(),
+  void _onNavTapped(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
     );
   }
 
-  Widget _buildMainContent() {
-    if (_currentScreen == AppScreen.splash) {
-      return SplashScreen(
-        key: const ValueKey('splash'),
-        onComplete: _onSplashComplete,
-        initializationFuture: _initializationFuture,
-      );
-    }
-
-    if (_currentScreen == AppScreen.login) {
-      return LoginScreen(
-        key: const ValueKey('login'),
-        onLoginSuccess: _onLoginSuccess,
-      );
-    }
-
-    if (_currentUser == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    // Check if the current screen is a standalone screen (not in PageView)
-    if (!_gameScreens.contains(_currentScreen)) {
-      return _buildScreen(_currentScreen);
-    }
-
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: PageView(
         controller: _pageController,
         onPageChanged: _onPageChanged,
-        physics: const NeverScrollableScrollPhysics(),
-        children: _gameScreens.map((screen) => _buildScreen(screen)).toList(),
+        children: _screens,
       ),
-      bottomNavigationBar: _buildBottomNav(),
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black26,
+              offset: Offset(0, -2),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: BottomNavigationBar(
+            currentIndex: _currentIndex,
+            onTap: _onNavTapped,
+            items: const [
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                activeIcon: Icon(Icons.home_filled),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.emoji_events_outlined),
+                activeIcon: Icon(Icons.emoji_events),
+                label: 'Missions',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.group_outlined),
+                activeIcon: Icon(Icons.group),
+                label: 'Refer',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.account_balance_wallet_outlined),
+                activeIcon: Icon(Icons.account_balance_wallet),
+                label: 'Withdraw',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.person_outline),
+                activeIcon: Icon(Icons.person),
+                label: 'Profile',
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
-
-  Widget _buildScreen(AppScreen screen) {
-    switch (screen) {
-      case AppScreen.home:
-        return HomeScreen(
-          user: _currentUser!,
-          gameService: _gameService,
-          onNavigateToMissions: () => _navigateTo(AppScreen.missions),
-          onNavigateToProfile: () => _navigateTo(AppScreen.profile),
-          onNavigateToAutoClicker: () => _navigateTo(AppScreen.autoClicker),
-          onNavigateToLeaderboard: () => _navigateTo(AppScreen.leaderboard),
-          onNavigateToWithdrawal: () => _navigateTo(AppScreen.withdrawal),
-          onNavigateToReferral: () => _navigateTo(AppScreen.referral),
-        );
-      case AppScreen.missions:
-        return MissionScreen(
-          user: _currentUser!,
-          gameService: _gameService,
-          onBack: () => _navigateTo(AppScreen.home),
-          onMissionStarted: () => _navigateTo(AppScreen.home),
-        );
-      case AppScreen.profile:
-        return ProfileScreen(
-          user: _currentUser!,
-          gameService: _gameService,
-          onBack: () => _navigateTo(AppScreen.home),
-          onLogout: _onLogout,
-          onNavigateToSettings: () => _navigateTo(AppScreen.settings),
-        );
-      case AppScreen.autoClicker:
-        return AutoClickerScreen(
-          user: _currentUser!,
-          gameService: _gameService,
-          onBack: () => _navigateTo(AppScreen.home),
-        );
-      case AppScreen.leaderboard:
-        return LeaderboardScreen(
-          user: _currentUser!,
-          gameService: _gameService,
-          onBack: () => _navigateTo(AppScreen.home),
-        );
-      case AppScreen.withdrawal:
-        return WithdrawalScreen(
-          user: _currentUser!,
-          gameService: _gameService,
-          onBack: () => _navigateTo(AppScreen.home),
-        );
-      case AppScreen.referral:
-        return ReferralScreen(
-          user: _currentUser!,
-          gameService: _gameService,
-          onBack: () => _navigateTo(AppScreen.home),
-        );
-      case AppScreen.settings:
-        return SettingsScreen(
-          user: _currentUser!,
-          gameService: _gameService,
-          onBack: () => _navigateTo(AppScreen.profile),
-          onNavigateToHelp: () => _navigateTo(AppScreen.help),
-        );
-      case AppScreen.help:
-        return HelpScreen(onBack: () => _navigateTo(AppScreen.settings));
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-}
-
-enum AppScreen {
-  splash,
-  login,
-  home,
-  missions,
-  profile,
-  autoClicker,
-  leaderboard,
-  withdrawal,
-  referral,
-  settings,
-  help,
 }

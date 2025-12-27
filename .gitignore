@@ -46,3 +46,25 @@ app.*.map.json
 
 
 /cloudflare-worker
+.dev.vars
+*-adminsdk-*.json
+*.json
+!firebase.json
+!pubspec.lock
+!analysis_options.yaml
+!package.json
+!package-lock.json
+!wrangler.toml
+!tsconfig.json
+!*.dart
+!*.yaml
+!*.md
+!*.xml
+!*.png
+!*.jpg
+!*.jpeg
+!*.svg
+!*.wav
+!*.mp3
+!*.ttf
+!*.otf

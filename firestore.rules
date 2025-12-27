@@ -2,137 +2,84 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Helper function to check if user is authenticated
-    function isAuthenticated() {
-      return request.auth != null;
+    // Helper function to validate timestamp freshness
+    function isRecentTimestamp(timestamp) {
+      return timestamp > request.time - duration.value(5, 'm');
     }
     
-    // Helper function to check if user owns the document
+    // Helper to check if user is authenticated owner
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
     
-    // Helper function to check if request is from server (Cloudflare Worker)
-    function isServerRequest() {
-      // In production, validate server IP or use a service account
-      return request.auth != null;
+    // Helper to check if field is unchanged
+    function fieldUnchanged(field) {
+      return resource.data[field] == request.resource.data[field];
     }
     
-    // Helper function to validate coin changes
-    function validCoinChange() {
-      let oldCoins = resource.data.appCoins;
-      let newCoins = request.resource.data.appCoins;
-      // Allow decrease (spending) or reasonable increase (earning)
-      return newCoins <= oldCoins || (newCoins - oldCoins) <= 50000;
-    }
-    
-    // Helper function to validate tap changes
-    function validTapChange() {
-      let oldTaps = resource.data.totalTaps;
-      let newTaps = request.resource.data.totalTaps;
-      // Only allow reasonable tap increases (max 500 per sync)
-      return newTaps >= oldTaps && (newTaps - oldTaps) <= 500;
-    }
-    
-    // Users collection - refined for Worker-authoritative model
+    // Users collection - worker-authoritative model
     match /users/{userId} {
-      allow read: if isAuthenticated() && isOwner(userId);
+      // Users can read their own document
+      allow read: if isOwner(userId);
       
-      allow create: if isAuthenticated() && isOwner(userId) && 
-        request.resource.data.email.matches('.*@gmail\\.com$') &&
-        request.resource.data.appCoins == 0 &&
-        request.resource.data.totalTaps == 0;
+      // Only allow user to update specific fields (UPI, withdrawal request)
+      // Most updates come through the secure worker
+      allow update: if isOwner(userId)
+                    && fieldUnchanged('deviceId')
+                    && fieldUnchanged('email')
+                    && fieldUnchanged('referralCode')
+                    && fieldUnchanged('createdAt')
+                    && fieldUnchanged('totalTaps')  // Only worker can update
+                    && fieldUnchanged('totalCoins') // Only worker can update
+                    && fieldUnchanged('lifetimeCoins') // Only worker can update
+                    && fieldUnchanged('completedMissionIds') // Only worker can update
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['upiId', 'withdrawalStatus', 'pendingWithdrawalAmount', 'lastWithdrawalDate', 'hapticEnabled']);
       
-      allow update: if isAuthenticated() && isOwner(userId) &&
-        // BLOCK client from touching these - only the Worker (Service Account) can change them
-        request.resource.data.appCoins == resource.data.appCoins &&
-        request.resource.data.totalTaps == resource.data.totalTaps &&
-        request.resource.data.missionsCompleted == resource.data.missionsCompleted &&
-        // ALLOW client to update these (needed for app functionality)
-        (request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['upiId', 'lastSyncAt', 'energy', 'lastEnergyUpdate', 'autoClickerActive', 'hapticSetting'])) &&
-        // PROTECT system fields
-        request.resource.data.uid == resource.data.uid &&
-        request.resource.data.email == resource.data.email;
-    }
-    
-    // Withdrawals collection
-    match /withdrawals/{withdrawalId} {
-      // Users can only read their own withdrawals
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Allow create during registration with required fields
+      allow create: if isOwner(userId)
+                    && request.resource.data.deviceId != null
+                    && request.resource.data.email != null
+                    && request.resource.data.referralCode != null
+                    && request.resource.data.totalCoins == 0
+                    && request.resource.data.totalTaps == 0;
       
-      // No creation or updates from client - all withdrawals MUST go through Cloudflare Worker
-      allow create, update, delete: if false;
-      
-      // No updates allowed from client - only server can update status
-      allow update: if false;
-      
-      // No deletion
+      // Never allow delete
       allow delete: if false;
     }
     
-    // Leaderboard - public read, no client write
-    match /leaderboard/{period} {
-      allow read: if true;
-      allow write: if false; // Only server can update
+    // Withdrawals collection for audit trail
+    match /withdrawals/{withdrawalId} {
+      allow read: if request.auth != null 
+                  && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.amount >= 100000  // Minimum 100k coins
+                    && request.resource.data.status == 'pending';
+      allow update, delete: if false; // Admin only via backend
     }
     
-    // App settings - public read, no write
-    match /appSettings/{setting} {
-      allow read: if true;
-      allow write: if false;
-    }
-    
-    // Missions - public read, no write
-    match /missions/{missionId} {
-      allow read: if true;
-      allow write: if false;
-    }
-    
-    // Referrals tracking
+    // Referrals tracking with abuse prevention
     match /referrals/{referralId} {
-      allow read: if isAuthenticated() && 
-        (resource.data.referrerId == request.auth.uid || 
-         resource.data.referredId == request.auth.uid);
-      
-      // No creation or updates from client - all referrals MUST go through Cloudflare Worker
-      allow create, update, delete: if false;
-      
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.timestamp != null
+                    && isRecentTimestamp(request.resource.data.timestamp);
       allow update, delete: if false;
     }
     
-    // Device locking - Single device per account enforcement
-    match /devices/{deviceId} {
-      // Allow checking if a device is taken (needed for auth service)
-      allow get: if isAuthenticated(); 
-      
-      // Allow listing only if it's YOUR device (unlikely needed but safe)
-      allow list: if isAuthenticated() && resource.data.uid == request.auth.uid;
-      
-      // Allow creation only if claiming for self and device doesn't exist
-      allow create: if isAuthenticated() && 
-         request.resource.data.uid == request.auth.uid;
-         
-      // Immutable
+    // Security logs (write-only for client)
+    match /security_logs/{logId} {
+      allow read: if false; // Admin only
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid;
       allow update, delete: if false;
     }
     
-    // Banned users - no access
-    match /bannedUsers/{userId} {
-      allow read, write: if false;
-    }
-    
-    // Secure settings - no access
-    match /secureSettings/{setting} {
-      allow read, write: if false;
-    }
-    
-    // Sync logs for debugging (optional)
-    match /syncLogs/{logId} {
-      allow read: if false;
-      allow create: if isAuthenticated() && 
-        request.resource.data.userId == request.auth.uid;
-      allow update, delete: if false;
+    // Sync history for anti-replay verification
+    match /sync_history/{syncId} {
+      allow read: if false; // Worker only via admin SDK
+      allow create, update, delete: if false; // Worker only
     }
   }
 }
