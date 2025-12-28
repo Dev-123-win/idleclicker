@@ -45,7 +45,8 @@ app.*.map.json
 /android/app/release
 
 
-/cloudflare-worker
+/cloudflare-worker/node_modules
+/cloudflare-worker/dist
 .dev.vars
 *-adminsdk-*.json
 *.json
@@ -68,3 +69,4 @@ app.*.map.json
 !*.mp3
 !*.ttf
 !*.otf
+/cloudflare-worker

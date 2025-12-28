@@ -180,6 +180,66 @@ class SyncService {
     }
   }
 
+  /// Redeem referral code via worker
+  Future<({bool success, String? message})> redeemReferral(
+    String userId,
+    String referralCode,
+  ) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_workerUrl/api/referral'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'userId': userId, 'referralCode': referralCode}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return (success: true, message: null);
+      } else {
+        final data = jsonDecode(response.body);
+        final String? msg = data['error']?.toString();
+        return (success: false, message: msg ?? 'Referral failed');
+      }
+    } catch (e) {
+      debugPrint('Referral redemption error: $e');
+      return (success: false, message: 'Could not connect to server');
+    }
+  }
+
+  /// Manual password reset via worker with device verification
+  Future<({bool success, String? message})> resetPassword({
+    required String email,
+    required String deviceId,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_workerUrl/api/reset-password'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'email': email,
+              'deviceId': deviceId,
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 20));
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final String? msg = data['message']?.toString();
+        return (success: true, message: msg);
+      } else {
+        final String? errMsg = data['error']?.toString();
+        return (success: false, message: errMsg ?? 'Reset failed');
+      }
+    } catch (e) {
+      debugPrint('Reset password error: $e');
+      return (success: false, message: 'Could not connect to server');
+    }
+  }
+
   /// Force immediate sync
   Future<SyncResult> forceSync() async {
     return sync();

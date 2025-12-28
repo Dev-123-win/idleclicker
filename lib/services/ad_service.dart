@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../core/constants.dart';
 
 /// AdMob advertising service
 class AdService {
@@ -56,6 +57,10 @@ class AdService {
   RewardedInterstitialAd? _rewardedInterstitialAd;
   AppOpenAd? _appOpenAd;
 
+  // Ad tracking
+  DateTime? _lastInterstitialTime;
+  int _screenSwitchCount = 0;
+
   bool _isInitialized = false;
   bool _isShowingAd = false;
 
@@ -65,6 +70,9 @@ class AdService {
 
     await MobileAds.instance.initialize();
     _isInitialized = true;
+
+    // Set initial time to prevent ad immediately on first switch if desired
+    _lastInterstitialTime = DateTime.now();
 
     // Preload ads
     _loadInterstitialAd();
@@ -108,6 +116,7 @@ class AdService {
               _interstitialAd = null;
               _loadInterstitialAd();
               _isShowingAd = false;
+              _lastInterstitialTime = DateTime.now();
             },
             onAdFailedToShowFullScreenContent: (ad, error) {
               ad.dispose();
@@ -125,9 +134,17 @@ class AdService {
     );
   }
 
-  /// Show interstitial ad (for screen transitions)
-  Future<bool> showInterstitialAd() async {
+  /// Show interstitial ad (with cooldown check)
+  Future<bool> showInterstitialAd({bool force = false}) async {
     if (_isShowingAd) return false;
+
+    if (!force && _lastInterstitialTime != null) {
+      final difference = DateTime.now().difference(_lastInterstitialTime!);
+      if (difference.inMinutes < AppConstants.minMinutesBetweenInterstitials) {
+        return false;
+      }
+    }
+
     if (_interstitialAd == null) {
       _loadInterstitialAd();
       return false;
@@ -136,6 +153,18 @@ class AdService {
     _isShowingAd = true;
     await _interstitialAd!.show();
     return true;
+  }
+
+  /// Records a screen switch and shows an ad if requirements are met
+  void recordScreenSwitch() {
+    _screenSwitchCount++;
+    if (_screenSwitchCount >= AppConstants.screenSwitchesBetweenAds) {
+      showInterstitialAd().then((shown) {
+        if (shown) {
+          _screenSwitchCount = 0;
+        }
+      });
+    }
   }
 
   /// Check if interstitial is ready

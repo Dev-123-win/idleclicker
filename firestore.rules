@@ -3,8 +3,8 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // Helper function to validate timestamp freshness
-    function isRecentTimestamp(timestamp) {
-      return timestamp > request.time - duration.value(5, 'm');
+    function isRecentTimestamp(ts) {
+      return ts > request.time - duration.value(5, 'm');
     }
     
     // Helper to check if user is authenticated owner

@@ -22,6 +22,7 @@ import 'screens/profile_screen.dart';
 import 'screens/faq_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
+import 'screens/auth/reset_password_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -68,6 +69,7 @@ class TapMineApp extends StatelessWidget {
         routes: {
           '/login': (context) => const LoginScreen(),
           '/register': (context) => const RegisterScreen(),
+          '/reset-password': (context) => const ResetPasswordScreen(),
           '/home': (context) => const MainNavigation(),
           '/faq': (context) => const FAQScreen(),
           '/settings': (context) => const ProfileScreen(),
@@ -236,10 +238,8 @@ class _MainNavigationState extends State<MainNavigation> {
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
 
-    // Show interstitial on screen transition occasionally
-    if (index != 0 && index % 2 == 0) {
-      getService<AdService>().showInterstitialAd();
-    }
+    // Let the service decide if it's time to show a transition ad
+    getService<AdService>().recordScreenSwitch();
   }
 
   void _onNavTapped(int index) {

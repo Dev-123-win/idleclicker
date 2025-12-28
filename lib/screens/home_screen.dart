@@ -44,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _showAd() async {
     setState(() => _showingAd = true);
 
-    final shown = await _adService.showInterstitialAd();
+    final shown = await _adService.showInterstitialAd(force: true);
     if (!shown) {
       // Try rewarded ad if interstitial not ready
       await _adService.showRewardedAd(

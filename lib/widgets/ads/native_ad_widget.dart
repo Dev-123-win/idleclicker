@@ -51,12 +51,18 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_isLoaded || _nativeAd == null) {
+      return const SizedBox.shrink();
+    }
+
     final height =
         widget.height ??
-        (widget.templateType == TemplateType.small ? 90.0 : 200.0);
+        (widget.templateType == TemplateType.small ? 90.0 : 320.0);
 
-    if (!_isLoaded || _nativeAd == null) {
-      return Container(
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+      child: Container(
         height: height,
         margin: const EdgeInsets.symmetric(
           horizontal: AppDimensions.md,
@@ -66,36 +72,11 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
         ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.textMuted,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Loading...',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 12),
-              ),
-            ],
-          ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+          child: AdWidget(ad: _nativeAd!),
         ),
-      );
-    }
-
-    return Container(
-      height: height,
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppDimensions.md,
-        vertical: AppDimensions.sm,
       ),
-      child: AdWidget(ad: _nativeAd!),
     );
   }
 }

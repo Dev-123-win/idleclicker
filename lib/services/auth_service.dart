@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../models/user_model.dart';
 import 'hive_service.dart';
 import 'device_service.dart';
+import 'sync_service.dart';
 import 'service_locator.dart';
 
 /// Authentication service using Firebase Auth
@@ -30,20 +31,6 @@ class AuthService {
   }) async {
     try {
       final deviceId = getService<DeviceService>().deviceId;
-
-      // Check if device is already registered
-      final existingDevice = await _firestore
-          .collection('users')
-          .where('deviceId', isEqualTo: deviceId)
-          .get();
-
-      if (existingDevice.docs.isNotEmpty) {
-        return (
-          user: null,
-          error:
-              'This device already has an account. Only one account per device is allowed.',
-        );
-      }
 
       // Create Firebase Auth user
       final credential = await _auth.createUserWithEmailAndPassword(
@@ -74,17 +61,14 @@ class AuthService {
       // Save to local storage
       await getService<HiveService>().saveUser(user);
 
-      // Handle referral bonus if referral code provided
-      if (referralCode != null && referralCode.isNotEmpty) {
-        await _processReferral(user.uid, referralCode);
-      }
-
       return (user: user, error: null);
     } on FirebaseAuthException catch (e) {
+      debugPrint('Registration Firebase error: ${e.code} - ${e.message}');
       return (user: null, error: _getAuthErrorMessage(e.code));
-    } catch (e) {
-      debugPrint('Registration error: $e');
-      return (user: null, error: 'An unexpected error occurred');
+    } catch (e, stack) {
+      debugPrint('Registration unexpected error: $e');
+      debugPrint('Stack trace: $stack');
+      return (user: null, error: 'An unexpected error occurred: $e');
     }
   }
 
@@ -94,14 +78,18 @@ class AuthService {
     required String password,
   }) async {
     try {
+      debugPrint('Starting login for $email');
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       if (credential.user == null) {
+        debugPrint('Login failed: Credential.user is null');
         return (user: null, error: 'Failed to login');
       }
+
+      debugPrint('Login success, fetching user ${credential.user!.uid}');
 
       // Get user from Firestore
       final doc = await _firestore
@@ -110,15 +98,24 @@ class AuthService {
           .get();
 
       if (!doc.exists) {
+        debugPrint(
+          'Firestore document does not exist for uid: ${credential.user!.uid}',
+        );
         await _auth.signOut();
         return (user: null, error: 'User data not found');
       }
 
       final user = UserModel.fromJson(doc.data()!);
+      debugPrint('User data fetched successfully for ${user.email}');
 
       // Verify device ID
       final currentDeviceId = getService<DeviceService>().deviceId;
+      debugPrint(
+        'Verifying device: stored=${user.deviceId}, current=$currentDeviceId',
+      );
+
       if (user.deviceId != currentDeviceId) {
+        debugPrint('Device ID mismatch');
         await _auth.signOut();
         return (
           user: null,
@@ -129,13 +126,16 @@ class AuthService {
 
       // Save to local storage
       await getService<HiveService>().saveUser(user);
+      debugPrint('Login complete');
 
       return (user: user, error: null);
     } on FirebaseAuthException catch (e) {
+      debugPrint('Login Firebase error: ${e.code} - ${e.message}');
       return (user: null, error: _getAuthErrorMessage(e.code));
-    } catch (e) {
-      debugPrint('Login error: $e');
-      return (user: null, error: 'An unexpected error occurred');
+    } catch (e, stack) {
+      debugPrint('Login unexpected error: $e');
+      debugPrint('Stack trace: $stack');
+      return (user: null, error: 'An unexpected error occurred: $e');
     }
   }
 
@@ -147,6 +147,30 @@ class AuthService {
     } on FirebaseAuthException catch (e) {
       return _getAuthErrorMessage(e.code);
     } catch (e) {
+      return 'An unexpected error occurred';
+    }
+  }
+
+  /// Manually reset password with device verification via worker
+  Future<String?> manuallyResetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    try {
+      final deviceId = getService<DeviceService>().deviceId;
+      final result = await getService<SyncService>().resetPassword(
+        email: email,
+        deviceId: deviceId,
+        newPassword: newPassword,
+      );
+
+      if (result.success) {
+        return null;
+      } else {
+        return result.message ?? 'Password reset failed';
+      }
+    } catch (e) {
+      debugPrint('Manual reset error: $e');
       return 'An unexpected error occurred';
     }
   }
@@ -163,41 +187,6 @@ class AuthService {
         uid.substring(0, 4).toUpperCase() +
         _uuid.v4().substring(0, 4).toUpperCase();
     return code;
-  }
-
-  /// Process referral bonus
-  Future<void> _processReferral(String newUserId, String referralCode) async {
-    try {
-      // Find referrer by referral code
-      final referrerQuery = await _firestore
-          .collection('users')
-          .where('referralCode', isEqualTo: referralCode)
-          .limit(1)
-          .get();
-
-      if (referrerQuery.docs.isEmpty) {
-        debugPrint('Referral code not found: $referralCode');
-        return;
-      }
-
-      final referrerId = referrerQuery.docs.first.id;
-
-      // Award referrer bonus (2000 coins)
-      await _firestore.collection('users').doc(referrerId).update({
-        'totalCoins': FieldValue.increment(2000),
-        'lifetimeCoins': FieldValue.increment(2000),
-      });
-
-      // Award new user bonus (5000 coins)
-      await _firestore.collection('users').doc(newUserId).update({
-        'totalCoins': FieldValue.increment(5000),
-        'lifetimeCoins': FieldValue.increment(5000),
-      });
-
-      debugPrint('Referral processed: $referralCode');
-    } catch (e) {
-      debugPrint('Error processing referral: $e');
-    }
   }
 
   /// Get human-readable auth error message

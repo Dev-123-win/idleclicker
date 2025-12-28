@@ -18,6 +18,8 @@ class AppConstants {
   static const int easyTierAdInterval = 50; // Show ad randomly within 50 taps
   static const int hardTierAdInterval = 40; // Show ad randomly within 40 taps
   static const int adCooldownSeconds = 10; // Cooldown after watching ad
+  static const int minMinutesBetweenInterstitials = 3; // Min time between transition ads
+  static const int screenSwitchesBetweenAds = 6; // Switches required between ads
 
   // Sync
   static const int syncIntervalHours = 3;

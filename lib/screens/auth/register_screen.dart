@@ -3,6 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../services/auth_service.dart';
+import '../../services/sync_service.dart';
 import '../../services/service_locator.dart';
 
 /// Registration screen with referral code support
@@ -55,20 +56,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (result.error != null) {
       setState(() => _errorMessage = result.error);
     } else if (result.user != null && mounted) {
+      // If referral code was entered, redeem it via worker
+      final referralCode = _referralController.text.trim();
+      if (referralCode.isNotEmpty) {
+        // We don't wait for this to finish to avoid blocking the user
+        // but we show a message if it succeeded
+        getService<SyncService>()
+            .redeemReferral(result.user!.uid, referralCode.toUpperCase())
+            .then((res) {
+              if (mounted && res.success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Referral bonus applied! +5000 coins'),
+                    backgroundColor: AppColors.success,
+                  ),
+                );
+              }
+            });
+      }
+
       // Show success and navigate
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: AppColors.success),
-              const SizedBox(width: 8),
-              Text(
-                _referralController.text.isNotEmpty
-                    ? 'Account created! +5000 bonus coins!'
-                    : 'Account created successfully!',
-              ),
-            ],
-          ),
+        const SnackBar(
+          content: Text('Account created successfully!'),
           backgroundColor: AppColors.surface,
         ),
       );
