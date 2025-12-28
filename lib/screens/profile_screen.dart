@@ -11,11 +11,21 @@ import '../services/service_locator.dart';
 import '../widgets/ads/native_ad_widget.dart';
 
 /// Profile screen with user stats
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final gameService = getService<GameService>();
     final user = gameService.user;
     final formatter = NumberFormat('#,###');
@@ -38,20 +48,22 @@ class ProfileScreen extends StatelessWidget {
         child: Column(
           children: [
             // Avatar
-            Container(
-              width: 100,
-              height: 100,
-              decoration: NeumorphicDecoration.goldFlat(radius: 50),
-              child: Center(
-                child: Text(
-                  user?.email.substring(0, 1).toUpperCase() ?? 'U',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: AppColors.background,
-                    fontWeight: FontWeight.bold,
+            RepaintBoundary(
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: NeumorphicDecoration.goldFlat(radius: 50),
+                child: Center(
+                  child: Text(
+                    user?.email.substring(0, 1).toUpperCase() ?? 'U',
+                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      color: AppColors.background,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ),
-            ).animate().scale(curve: Curves.elasticOut),
+              ).animate().scale(curve: Curves.elasticOut),
+            ),
 
             const SizedBox(height: 16),
 
@@ -72,41 +84,43 @@ class ProfileScreen extends StatelessWidget {
             const SizedBox(height: 32),
 
             // Stats grid
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.5,
-              children: [
-                _StatCard(
-                  icon: Icons.monetization_on,
-                  label: 'Total Coins',
-                  value: formatter.format(user?.totalCoins ?? 0),
-                  color: AppColors.gold,
-                ),
-                _StatCard(
-                  icon: Icons.emoji_events,
-                  label: 'Lifetime Coins',
-                  value: formatter.format(user?.lifetimeCoins ?? 0),
-                  color: AppColors.warning,
-                ),
-                _StatCard(
-                  icon: Icons.touch_app,
-                  label: 'Total Taps',
-                  value: formatter.format(user?.totalTaps ?? 0),
-                  color: AppColors.info,
-                ),
-                _StatCard(
-                  icon: Icons.check_circle,
-                  label: 'Missions Done',
-                  value:
-                      '${user?.completedMissionIds.length ?? 0}/${Missions.all.length}',
-                  color: AppColors.success,
-                ),
-              ],
-            ).animate().fadeIn(delay: 400.ms),
+            RepaintBoundary(
+              child: GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 1.5,
+                children: [
+                  _StatCard(
+                    icon: Icons.monetization_on,
+                    label: 'Total Coins',
+                    value: formatter.format(user?.totalCoins ?? 0),
+                    color: AppColors.gold,
+                  ),
+                  _StatCard(
+                    icon: Icons.emoji_events,
+                    label: 'Lifetime Coins',
+                    value: formatter.format(user?.lifetimeCoins ?? 0),
+                    color: AppColors.warning,
+                  ),
+                  _StatCard(
+                    icon: Icons.touch_app,
+                    label: 'Total Taps',
+                    value: formatter.format(user?.totalTaps ?? 0),
+                    color: AppColors.info,
+                  ),
+                  _StatCard(
+                    icon: Icons.check_circle,
+                    label: 'Missions Done',
+                    value:
+                        '${user?.completedMissionIds.length ?? 0}/${Missions.all.length}',
+                    color: AppColors.success,
+                  ),
+                ],
+              ).animate().fadeIn(delay: 400.ms),
+            ),
 
             const SizedBox(height: 24),
 

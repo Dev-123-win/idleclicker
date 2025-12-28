@@ -2,17 +2,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' show TemplateType;
 import '../core/constants.dart';
 import '../core/theme.dart';
 import '../services/game_service.dart';
 import '../services/service_locator.dart';
+import '../widgets/ads/native_ad_widget.dart';
 
 /// Referral screen with sharing functionality
-class ReferralScreen extends StatelessWidget {
+class ReferralScreen extends StatefulWidget {
   const ReferralScreen({super.key});
 
   @override
+  State<ReferralScreen> createState() => _ReferralScreenState();
+}
+
+class _ReferralScreenState extends State<ReferralScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final gameService = getService<GameService>();
     final referralCode = gameService.user?.referralCode ?? 'N/A';
 
@@ -28,16 +40,18 @@ class ReferralScreen extends StatelessWidget {
         child: Column(
           children: [
             // Header illustration
-            Container(
-              width: 120,
-              height: 120,
-              decoration: NeumorphicDecoration.goldFlat(radius: 60),
-              child: Icon(
-                Icons.group_add,
-                size: 60,
-                color: AppColors.background,
-              ),
-            ).animate().scale(curve: Curves.elasticOut),
+            RepaintBoundary(
+              child: Container(
+                width: 120,
+                height: 120,
+                decoration: NeumorphicDecoration.goldFlat(radius: 60),
+                child: Icon(
+                  Icons.group_add,
+                  size: 60,
+                  color: AppColors.background,
+                ),
+              ).animate().scale(curve: Curves.elasticOut),
+            ),
 
             const SizedBox(height: 24),
 
@@ -60,25 +74,27 @@ class ReferralScreen extends StatelessWidget {
             const SizedBox(height: 32),
 
             // Rewards info
-            Row(
-              children: [
-                Expanded(
-                  child: _RewardCard(
-                    icon: Icons.person,
-                    title: 'You Get',
-                    coins: AppConstants.referrerBonus,
+            RepaintBoundary(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _RewardCard(
+                      icon: Icons.person,
+                      title: 'You Get',
+                      coins: AppConstants.referrerBonus,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: _RewardCard(
-                    icon: Icons.person_add,
-                    title: 'Friend Gets',
-                    coins: AppConstants.referredBonus,
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _RewardCard(
+                      icon: Icons.person_add,
+                      title: 'Friend Gets',
+                      coins: AppConstants.referredBonus,
+                    ),
                   ),
-                ),
-              ],
-            ).animate().fadeIn(delay: 400.ms),
+                ],
+              ).animate().fadeIn(delay: 400.ms),
+            ),
 
             const SizedBox(height: 32),
 
@@ -145,7 +161,12 @@ class ReferralScreen extends StatelessWidget {
               ),
             ).animate().fadeIn(delay: 600.ms).slideY(begin: 0.2, end: 0),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // Native ad
+            const NativeAdWidget(templateType: TemplateType.medium),
+
+            const SizedBox(height: 24),
 
             // How it works
             Container(

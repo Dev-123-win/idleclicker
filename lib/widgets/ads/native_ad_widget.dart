@@ -30,17 +30,26 @@ class _NativeAdWidgetState extends State<NativeAdWidget> {
   }
 
   void _loadAd() {
-    _nativeAd = getService<AdService>().createNativeAd(
-      templateType: widget.templateType,
-      onLoaded: (ad) {
-        setState(() => _isLoaded = true);
-      },
-      onFailed: (ad, error) {
-        ad.dispose();
-        debugPrint('Native ad failed: ${error.message}');
-      },
-    );
-    _nativeAd!.load();
+    final adService = getService<AdService>();
+    final preloadedAd = adService.getNativeAd(widget.templateType);
+
+    if (preloadedAd != null) {
+      _nativeAd = preloadedAd;
+      _isLoaded = true;
+      setState(() {});
+    } else {
+      _nativeAd = adService.createNativeAd(
+        templateType: widget.templateType,
+        onLoaded: (ad) {
+          if (mounted) setState(() => _isLoaded = true);
+        },
+        onFailed: (ad, error) {
+          ad.dispose();
+          debugPrint('Native ad failed: ${error.message}');
+        },
+      );
+      _nativeAd!.load();
+    }
   }
 
   @override

@@ -6,7 +6,7 @@ import '../core/theme.dart';
 import '../widgets/ads/native_ad_widget.dart';
 
 /// FAQ screen with expandable items
-class FAQScreen extends StatelessWidget {
+class FAQScreen extends StatefulWidget {
   const FAQScreen({super.key});
 
   static const List<Map<String, String>> _faqs = [
@@ -63,7 +63,17 @@ class FAQScreen extends StatelessWidget {
   ];
 
   @override
+  State<FAQScreen> createState() => _FAQScreenState();
+}
+
+class _FAQScreenState extends State<FAQScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -73,10 +83,10 @@ class FAQScreen extends StatelessWidget {
       ),
       body: ListView.builder(
         padding: const EdgeInsets.all(AppDimensions.md),
-        itemCount: _faqs.length + 1, // +1 for native ad
+        itemCount: FAQScreen._faqs.length + 1, // +1 for native ad
         itemBuilder: (context, index) {
           // Show native ad in middle
-          if (index == _faqs.length ~/ 2) {
+          if (index == FAQScreen._faqs.length ~/ 2) {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: AppDimensions.sm),
               child: NativeAdWidget(
@@ -86,15 +96,19 @@ class FAQScreen extends StatelessWidget {
             );
           }
 
-          final faqIndex = index > _faqs.length ~/ 2 ? index - 1 : index;
-          if (faqIndex >= _faqs.length) return const SizedBox();
+          final faqIndex = index > FAQScreen._faqs.length ~/ 2
+              ? index - 1
+              : index;
+          if (faqIndex >= FAQScreen._faqs.length) return const SizedBox();
 
-          final faq = _faqs[faqIndex];
+          final faq = FAQScreen._faqs[faqIndex];
 
-          return _FAQItem(question: faq['question']!, answer: faq['answer']!)
-              .animate(delay: Duration(milliseconds: 50 * faqIndex))
-              .fadeIn()
-              .slideX(begin: 0.1, end: 0);
+          return RepaintBoundary(
+            child: _FAQItem(question: faq['question']!, answer: faq['answer']!)
+                .animate(delay: Duration(milliseconds: 50 * faqIndex))
+                .fadeIn()
+                .slideX(begin: 0.1, end: 0),
+          );
         },
       ),
     );

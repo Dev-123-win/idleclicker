@@ -51,11 +51,14 @@ class AdService {
   String get appOpenAdUnitId =>
       kDebugMode ? _testAppOpenAdUnitId : _prodAppOpenAdUnitId;
 
-  // Preloaded ads
-  InterstitialAd? _interstitialAd;
-  RewardedAd? _rewardedAd;
-  RewardedInterstitialAd? _rewardedInterstitialAd;
+  // Pooled ads for zero-latency
+  final List<InterstitialAd> _interstitialPool = [];
+  final List<RewardedAd> _rewardedPool = [];
+  final List<RewardedInterstitialAd> _rewardedInterstitialPool = [];
   AppOpenAd? _appOpenAd;
+
+  // Max pool sizes
+  static const int _maxPoolSize = 2;
 
   // Ad tracking
   DateTime? _lastInterstitialTime;
@@ -79,6 +82,50 @@ class AdService {
     _loadRewardedAd();
     _loadRewardedInterstitialAd();
     _loadAppOpenAd();
+
+    // Preload native ads
+    _preloadNativeAd(TemplateType.small);
+    _preloadNativeAd(TemplateType.medium);
+  }
+
+  // ============ Native Ad Preloading ============
+  final Map<TemplateType, List<NativeAd>> _preloadedNativeAds = {
+    TemplateType.small: [],
+    TemplateType.medium: [],
+  };
+
+  void _preloadNativeAd(TemplateType type) {
+    if (_preloadedNativeAds[type]!.length >= 2) return; // Buffer of 2
+
+    NativeAd? ad;
+    ad = createNativeAd(
+      templateType: type,
+      onLoaded: (_) {
+        if (ad != null) _preloadedNativeAds[type]?.add(ad);
+        debugPrint('Preloaded native ad loaded: $type');
+      },
+      onFailed: (failedAd, error) {
+        failedAd.dispose();
+        debugPrint('Preloaded native ad failed: $type - ${error.message}');
+        // Retry after delay
+        Future.delayed(
+          const Duration(seconds: 30),
+          () => _preloadNativeAd(type),
+        );
+      },
+    );
+    ad.load();
+  }
+
+  /// Get a preloaded native ad or create a new one if none available
+  NativeAd? getNativeAd(TemplateType type) {
+    if (_preloadedNativeAds[type]!.isNotEmpty) {
+      final ad = _preloadedNativeAds[type]!.removeAt(0);
+      // Trigger a new preload to refill the buffer
+      _preloadNativeAd(type);
+      return ad;
+    }
+    return null;
   }
 
   // ============ Banner Ads ============
@@ -102,39 +149,29 @@ class AdService {
 
   // ============ Interstitial Ads (for screen transitions) ============
 
-  /// Load interstitial ad
+  /// Load interstitial ad into pool
   void _loadInterstitialAd() {
+    if (_interstitialPool.length >= _maxPoolSize) return;
+
     InterstitialAd.load(
       adUnitId: interstitialAdUnitId,
       request: const AdRequest(),
       adLoadCallback: InterstitialAdLoadCallback(
         onAdLoaded: (ad) {
-          _interstitialAd = ad;
-          ad.fullScreenContentCallback = FullScreenContentCallback(
-            onAdDismissedFullScreenContent: (ad) {
-              ad.dispose();
-              _interstitialAd = null;
-              _loadInterstitialAd();
-              _isShowingAd = false;
-              _lastInterstitialTime = DateTime.now();
-            },
-            onAdFailedToShowFullScreenContent: (ad, error) {
-              ad.dispose();
-              _interstitialAd = null;
-              _loadInterstitialAd();
-              _isShowingAd = false;
-            },
-          );
+          _interstitialPool.add(ad);
+          debugPrint('Interstitial pool size: ${_interstitialPool.length}');
+          // If still below max, load another
+          if (_interstitialPool.length < _maxPoolSize) _loadInterstitialAd();
         },
         onAdFailedToLoad: (error) {
-          debugPrint('Interstitial failed to load: ${error.message}');
+          debugPrint('Interstitial failed: ${error.message}');
           Future.delayed(const Duration(seconds: 30), _loadInterstitialAd);
         },
       ),
     );
   }
 
-  /// Show interstitial ad (with cooldown check)
+  /// Show interstitial ad from pool
   Future<bool> showInterstitialAd({bool force = false}) async {
     if (_isShowingAd) return false;
 
@@ -145,13 +182,29 @@ class AdService {
       }
     }
 
-    if (_interstitialAd == null) {
+    if (_interstitialPool.isEmpty) {
       _loadInterstitialAd();
       return false;
     }
 
     _isShowingAd = true;
-    await _interstitialAd!.show();
+    final ad = _interstitialPool.removeAt(0);
+
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _loadInterstitialAd();
+        _isShowingAd = false;
+        _lastInterstitialTime = DateTime.now();
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        _loadInterstitialAd();
+        _isShowingAd = false;
+      },
+    );
+
+    await ad.show();
     return true;
   }
 
@@ -168,57 +221,60 @@ class AdService {
   }
 
   /// Check if interstitial is ready
-  bool get isInterstitialReady => _interstitialAd != null;
+  bool get isInterstitialReady => _interstitialPool.isNotEmpty;
 
   // ============ Rewarded Ads (for skip taps) ============
 
-  /// Load rewarded ad
+  /// Load rewarded ad into pool
   void _loadRewardedAd() {
+    if (_rewardedPool.length >= _maxPoolSize) return;
+
     RewardedAd.load(
       adUnitId: rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          _rewardedAd = ad;
+          _rewardedPool.add(ad);
+          debugPrint('Rewarded pool size: ${_rewardedPool.length}');
+          if (_rewardedPool.length < _maxPoolSize) _loadRewardedAd();
         },
         onAdFailedToLoad: (error) {
-          debugPrint('Rewarded ad failed to load: ${error.message}');
+          debugPrint('Rewarded ad failed: ${error.message}');
           Future.delayed(const Duration(seconds: 30), _loadRewardedAd);
         },
       ),
     );
   }
 
-  /// Show rewarded ad with callback (for skip taps feature)
+  /// Show rewarded ad from pool
   Future<bool> showRewardedAd({
     required void Function() onRewarded,
     void Function()? onDismissed,
   }) async {
     if (_isShowingAd) return false;
-    if (_rewardedAd == null) {
+    if (_rewardedPool.isEmpty) {
       _loadRewardedAd();
       return false;
     }
 
     _isShowingAd = true;
+    final ad = _rewardedPool.removeAt(0);
 
-    _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+    ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdDismissedFullScreenContent: (ad) {
         ad.dispose();
-        _rewardedAd = null;
         _loadRewardedAd();
         _isShowingAd = false;
         onDismissed?.call();
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         ad.dispose();
-        _rewardedAd = null;
         _loadRewardedAd();
         _isShowingAd = false;
       },
     );
 
-    await _rewardedAd!.show(
+    await ad.show(
       onUserEarnedReward: (ad, reward) {
         onRewarded();
       },
@@ -228,21 +284,28 @@ class AdService {
   }
 
   /// Check if rewarded ad is ready
-  bool get isRewardedReady => _rewardedAd != null;
+  bool get isRewardedReady => _rewardedPool.isNotEmpty;
 
   // ============ Rewarded Interstitial Ads (for missions) ============
 
-  /// Load rewarded interstitial ad
+  /// Load rewarded interstitial ad into pool
   void _loadRewardedInterstitialAd() {
+    if (_rewardedInterstitialPool.length >= _maxPoolSize) return;
+
     RewardedInterstitialAd.load(
       adUnitId: rewardedInterstitialAdUnitId,
       request: const AdRequest(),
       rewardedInterstitialAdLoadCallback: RewardedInterstitialAdLoadCallback(
         onAdLoaded: (ad) {
-          _rewardedInterstitialAd = ad;
+          _rewardedInterstitialPool.add(ad);
+          debugPrint(
+            'Rewarded Interstitial pool size: ${_rewardedInterstitialPool.length}',
+          );
+          if (_rewardedInterstitialPool.length < _maxPoolSize)
+            _loadRewardedInterstitialAd();
         },
         onAdFailedToLoad: (error) {
-          debugPrint('Rewarded interstitial failed to load: ${error.message}');
+          debugPrint('Rewarded interstitial failed: ${error.message}');
           Future.delayed(
             const Duration(seconds: 30),
             _loadRewardedInterstitialAd,
@@ -252,37 +315,35 @@ class AdService {
     );
   }
 
-  /// Show rewarded interstitial ad (for mission start)
+  /// Show rewarded interstitial ad from pool
   Future<bool> showRewardedInterstitialAd({
     required void Function() onRewarded,
     void Function()? onDismissed,
   }) async {
     if (_isShowingAd) return false;
-    if (_rewardedInterstitialAd == null) {
+    if (_rewardedInterstitialPool.isEmpty) {
       _loadRewardedInterstitialAd();
       return false;
     }
 
     _isShowingAd = true;
+    final ad = _rewardedInterstitialPool.removeAt(0);
 
-    _rewardedInterstitialAd!.fullScreenContentCallback =
-        FullScreenContentCallback(
-          onAdDismissedFullScreenContent: (ad) {
-            ad.dispose();
-            _rewardedInterstitialAd = null;
-            _loadRewardedInterstitialAd();
-            _isShowingAd = false;
-            onDismissed?.call();
-          },
-          onAdFailedToShowFullScreenContent: (ad, error) {
-            ad.dispose();
-            _rewardedInterstitialAd = null;
-            _loadRewardedInterstitialAd();
-            _isShowingAd = false;
-          },
-        );
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdDismissedFullScreenContent: (ad) {
+        ad.dispose();
+        _loadRewardedInterstitialAd();
+        _isShowingAd = false;
+        onDismissed?.call();
+      },
+      onAdFailedToShowFullScreenContent: (ad, error) {
+        ad.dispose();
+        _loadRewardedInterstitialAd();
+        _isShowingAd = false;
+      },
+    );
 
-    await _rewardedInterstitialAd!.show(
+    await ad.show(
       onUserEarnedReward: (ad, reward) {
         onRewarded();
       },
@@ -292,7 +353,7 @@ class AdService {
   }
 
   /// Check if rewarded interstitial is ready
-  bool get isRewardedInterstitialReady => _rewardedInterstitialAd != null;
+  bool get isRewardedInterstitialReady => _rewardedInterstitialPool.isNotEmpty;
 
   // ============ App Open Ads ============
 
@@ -306,7 +367,8 @@ class AdService {
           _appOpenAd = ad;
         },
         onAdFailedToLoad: (error) {
-          debugPrint('App open ad failed to load: ${error.message}');
+          debugPrint('App open ad failed: ${error.message}');
+          Future.delayed(const Duration(seconds: 60), _loadAppOpenAd);
         },
       ),
     );
@@ -387,9 +449,28 @@ class AdService {
 
   /// Dispose resources
   void dispose() {
-    _interstitialAd?.dispose();
-    _rewardedAd?.dispose();
-    _rewardedInterstitialAd?.dispose();
+    for (var ad in _interstitialPool) {
+      ad.dispose();
+    }
+    _interstitialPool.clear();
+
+    for (var ad in _rewardedPool) {
+      ad.dispose();
+    }
+    _rewardedPool.clear();
+
+    for (var ad in _rewardedInterstitialPool) {
+      ad.dispose();
+    }
+    _rewardedInterstitialPool.clear();
+
+    for (var pool in _preloadedNativeAds.values) {
+      for (var ad in pool) {
+        ad.dispose();
+      }
+      pool.clear();
+    }
+
     _appOpenAd?.dispose();
   }
 }

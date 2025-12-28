@@ -10,11 +10,21 @@ import '../services/service_locator.dart';
 import '../widgets/ads/native_ad_widget.dart';
 
 /// Missions list screen
-class MissionsScreen extends StatelessWidget {
+class MissionsScreen extends StatefulWidget {
   const MissionsScreen({super.key});
 
   @override
+  State<MissionsScreen> createState() => _MissionsScreenState();
+}
+
+class _MissionsScreenState extends State<MissionsScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final gameService = getService<GameService>();
     final currentIndex = gameService.user?.currentMissionIndex ?? 0;
     final completedIds = gameService.user?.completedMissionIds ?? [];
@@ -48,18 +58,21 @@ class MissionsScreen extends StatelessWidget {
           final isCurrent = missionIndex == currentIndex;
           final isLocked = missionIndex > currentIndex;
 
-          return _MissionCard(
-                mission: mission,
-                isCompleted: isCompleted,
-                isCurrent: isCurrent,
-                isLocked: isLocked,
-                onStart: isCurrent
-                    ? () => _startMission(context, mission)
-                    : null,
-              )
-              .animate(delay: Duration(milliseconds: 50 * missionIndex))
-              .fadeIn()
-              .slideX(begin: 0.1, end: 0);
+          return RepaintBoundary(
+            child:
+                _MissionCard(
+                      mission: mission,
+                      isCompleted: isCompleted,
+                      isCurrent: isCurrent,
+                      isLocked: isLocked,
+                      onStart: isCurrent
+                          ? () => _startMission(context, mission)
+                          : null,
+                    )
+                    .animate(delay: Duration(milliseconds: 50 * missionIndex))
+                    .fadeIn()
+                    .slideX(begin: 0.1, end: 0),
+          );
         },
       ),
     );

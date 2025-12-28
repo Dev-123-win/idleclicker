@@ -17,7 +17,8 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
   final GameService _gameService = getService<GameService>();
   final AdService _adService = getService<AdService>();
 
@@ -113,7 +114,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -136,21 +141,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         // Coin counter
-                        CoinCounter(coins: game.currentCoins)
-                            .animate()
-                            .fadeIn(delay: 200.ms)
-                            .slideY(begin: -0.2, end: 0),
+                        RepaintBoundary(
+                          child: CoinCounter(coins: game.currentCoins)
+                              .animate()
+                              .fadeIn(delay: 200.ms)
+                              .slideY(begin: -0.2, end: 0),
+                        ),
 
                         const SizedBox(height: 48),
 
                         // Tap button
-                        TapButton(
-                          onTap: _handleTap,
-                          enabled: mission?.isTapMission ?? false,
-                          cooldownSeconds: game.adCooldownSeconds,
-                        ).animate().scale(
-                          delay: 300.ms,
-                          curve: Curves.elasticOut,
+                        RepaintBoundary(
+                          child:
+                              TapButton(
+                                onTap: _handleTap,
+                                enabled: mission?.isTapMission ?? false,
+                                cooldownSeconds: game.adCooldownSeconds,
+                              ).animate().scale(
+                                delay: 300.ms,
+                                curve: Curves.elasticOut,
+                              ),
                         ),
 
                         const SizedBox(height: 32),

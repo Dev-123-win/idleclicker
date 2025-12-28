@@ -2,11 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart' show TemplateType;
 import '../core/constants.dart';
 import '../core/theme.dart';
 import '../services/game_service.dart';
 import '../services/sync_service.dart';
 import '../services/service_locator.dart';
+import '../widgets/ads/native_ad_widget.dart';
 
 /// Withdrawal screen with UPI integration
 class WithdrawalScreen extends StatefulWidget {
@@ -16,7 +18,11 @@ class WithdrawalScreen extends StatefulWidget {
   State<WithdrawalScreen> createState() => _WithdrawalScreenState();
 }
 
-class _WithdrawalScreenState extends State<WithdrawalScreen> {
+class _WithdrawalScreenState extends State<WithdrawalScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   final _upiController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
@@ -153,6 +159,7 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final gameService = getService<GameService>();
     final coins = gameService.currentCoins;
     final rupees = gameService.coinsInRupees;
@@ -173,51 +180,53 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Balance card
-              Container(
-                padding: const EdgeInsets.all(AppDimensions.lg),
-                decoration: NeumorphicDecoration.flat(),
-                child: Column(
-                  children: [
-                    Text(
-                      'Available Balance',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          'assets/AppCoin.png',
-                          width: 32,
-                          height: 32,
-                          errorBuilder: (_, __, ___) => Icon(
-                            Icons.monetization_on,
-                            size: 32,
-                            color: AppColors.gold,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '$coins',
-                          style: Theme.of(context).textTheme.headlineLarge
-                              ?.copyWith(
-                                color: AppColors.gold,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '= ₹${rupees.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 18,
+              RepaintBoundary(
+                child: Container(
+                  padding: const EdgeInsets.all(AppDimensions.lg),
+                  decoration: NeumorphicDecoration.flat(),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Available Balance',
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
-                    ),
-                  ],
-                ),
-              ).animate().fadeIn().slideY(begin: -0.1, end: 0),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            'assets/AppCoin.png',
+                            width: 32,
+                            height: 32,
+                            errorBuilder: (_, __, ___) => Icon(
+                              Icons.monetization_on,
+                              size: 32,
+                              color: AppColors.gold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            '$coins',
+                            style: Theme.of(context).textTheme.headlineLarge
+                                ?.copyWith(
+                                  color: AppColors.gold,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '= ₹${rupees.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ],
+                  ),
+                ).animate().fadeIn().slideY(begin: -0.1, end: 0),
+              ),
 
               const SizedBox(height: 16),
 
@@ -254,6 +263,11 @@ class _WithdrawalScreenState extends State<WithdrawalScreen> {
                   ],
                 ),
               ).animate(delay: 200.ms).fadeIn(),
+
+              const SizedBox(height: 24),
+
+              // Native ad
+              const NativeAdWidget(templateType: TemplateType.medium),
 
               const SizedBox(height: 24),
 
